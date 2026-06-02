@@ -8,12 +8,18 @@ Usage:
 
 import os
 import sys
+import argparse
 from pathlib import Path
 
-def ingest():
-    root = Path.cwd()
-    sources_dir = root / "data" / "sources"
-    store_dir = root / ".ai" / "rag" / "db"
+def ingest(scope="local"):
+    if scope == "global":
+        root = Path.home() / ".agentbrain"
+        sources_dir = root / "rag" / "sources"
+        store_dir = root / "rag" / "db"
+    else:
+        root = Path.cwd()
+        sources_dir = root / "data" / "sources"
+        store_dir = root / ".ai" / "rag" / "db"
 
     if not sources_dir.exists():
         print(f"No sources directory found at {sources_dir}")
@@ -108,4 +114,8 @@ def ingest():
 
 
 if __name__ == "__main__":
-    ingest()
+    parser = argparse.ArgumentParser(description="Ingest PDFs into RAG database.")
+    parser.add_argument("--scope", choices=["local", "global"], default="local", help="Choose local or global AgentBrain database.")
+    args = parser.parse_args()
+    
+    ingest(scope=args.scope)
