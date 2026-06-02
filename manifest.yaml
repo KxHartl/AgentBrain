@@ -1,0 +1,29 @@
+# AgentBrain Manifest — Version contract with LiteRealm projects.
+# LiteRealm bootstrap reads this to stamp version into project.yaml.
+
+version: "2.0.0"
+min_literealm_version: "2.0.0"
+
+rag_backend: "lancedb"
+pdf_parser: "docling"
+
+scripts:
+  ingest: "scripts/rag/ingest.py"
+  query: "scripts/rag/query.py"
+  add_citation: "scripts/add_citation.py"
+  setup_env_sh: "scripts/setup_env.sh"
+  setup_env_ps1: "scripts/setup_env.ps1"
+
+templates:
+  - fsb-seminar
+  - fsb-thesis
+  - fsb-paper
+  - fsb-presentation
+  - fsb-video
+
+agents:
+  - data_fetcher
+  - writer
+  - latex_surgeon
+  - qa_reviewer
+  - rag_indexer

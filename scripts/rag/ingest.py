@@ -1,9 +1,12 @@
 """
-LiteRealm RAG — Document ingestion pipeline.
-Parses PDFs from data/sources/ into a ChromaDB vector store in .ai/rag/db.
+LiteRealm RAG — Document ingestion pipeline (Docling + LanceDB).
+Uses IBM Docling for ML-based PDF parsing (tables, layout, figures, multi-column)
+and stores embeddings in a LanceDB vector store.
 
 Usage:
-    python .ai/rag/ingest.py
+    python ~/.agentbrain/scripts/rag/ingest.py                    # local project DB
+    python ~/.agentbrain/scripts/rag/ingest.py --scope global     # global AgentBrain DB
+    python ~/.agentbrain/scripts/rag/ingest.py --ocr              # enable OCR for scanned PDFs
 """
 
 import os
@@ -11,19 +14,69 @@ import sys
 import argparse
 from pathlib import Path
 
-def ingest(scope="local"):
+
+def get_paths(scope):
+    """Return (sources_dir, store_dir) based on scope."""
     if scope == "global":
         root = Path.home() / ".agentbrain"
-        sources_dir = root / "rag" / "sources"
-        store_dir = root / "rag" / "db"
+        return root / "rag" / "sources", root / "rag" / "db"
     else:
         root = Path.cwd()
-        sources_dir = root / "data" / "sources"
-        store_dir = root / ".ai" / "rag" / "db"
+        return root / "data" / "sources", root / ".ai" / "rag" / "db"
 
-    if not sources_dir.exists():
-        print(f"No sources directory found at {sources_dir}")
-        print("Create it and add PDF files, then run again.")
+
+def load_embeddings():
+    """Load embedding model: prefer Gemini cloud, fall back to local."""
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+
+            def embed_fn(texts):
+                result = genai.embed_content(
+                    model="models/embedding-001",
+                    content=texts if isinstance(texts, list) else [texts],
+                    task_type="retrieval_document"
+                )
+                return result["embedding"] if isinstance(texts, str) else result["embedding"]
+
+            print("Using Gemini cloud embeddings.")
+            return embed_fn, 768
+        except Exception as e:
+            print(f"  Gemini failed ({e}), trying local...")
+
+    try:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+
+        def embed_fn(texts):
+            if isinstance(texts, str):
+                texts = [texts]
+            return model.encode(texts).tolist()
+
+        print("Using local HuggingFace embeddings (all-MiniLM-L6-v2).")
+        return embed_fn, 384
+    except ImportError:
+        print("No embedding provider available.")
+        print("Set GEMINI_API_KEY in .env or: pip install sentence-transformers")
+        sys.exit(1)
+
+
+def parse_with_docling(sources_dir, enable_ocr=False):
+    """
+    Parse PDFs using Docling DocumentConverter + HybridChunker.
+    Handles tables, multi-column layouts, figures, and complex formatting.
+    """
+    try:
+        from docling.document_converter import DocumentConverter
+        from docling.chunking import HybridChunker
+    except ImportError:
+        print("Docling not installed. Run: pip install docling")
+        print("Note: Docling requires Python 3.10+ and is ~500MB (includes ML models).")
         sys.exit(1)
 
     pdf_files = list(sources_dir.glob("*.pdf"))
@@ -33,89 +86,170 @@ def ingest(scope="local"):
 
     print(f"Found {len(pdf_files)} PDF(s) in {sources_dir}")
 
-    # Import dependencies (installed by bootstrap)
-    try:
-        from langchain_community.document_loaders import PyPDFLoader
-        from langchain.text_splitter import RecursiveCharacterTextSplitter
-        from langchain_community.vectorstores import Chroma
-    except ImportError as e:
-        print(f"Missing dependency: {e}")
-        print("Run bootstrap with -Rag cloud or -Rag local to install RAG packages.")
-        sys.exit(1)
+    # Configure converter
+    if enable_ocr:
+        from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions
+        from docling.datamodel.base_models import InputFormat
+        from docling.document_converter import PdfFormatOption
 
-    # Try cloud embeddings first, fall back to local
-    embeddings = None
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(root / ".env")
+        ocr_options = EasyOcrOptions(force_full_page_ocr=True)
+        pipeline_options = PdfPipelineOptions(ocr_options=ocr_options)
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+            }
+        )
+        print("  OCR enabled (full page).")
+    else:
+        converter = DocumentConverter()
 
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if api_key:
-            from langchain_community.embeddings import GoogleGenerativeAIEmbeddings
-            embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001",
-                google_api_key=api_key
-            )
-            print("Using Gemini cloud embeddings.")
-    except Exception:
-        pass
+    # Configure chunker
+    chunker = HybridChunker(max_tokens=512, merge_peers=True)
 
-    if embeddings is None:
-        try:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
-            embeddings = HuggingFaceEmbeddings(
-                model_name="all-MiniLM-L6-v2"
-            )
-            print("Using local HuggingFace embeddings.")
-        except ImportError:
-            print("No embedding provider available.")
-            print("Set GEMINI_API_KEY in .env or install sentence-transformers.")
-            sys.exit(1)
-
-    # Load and split documents
-    all_docs = []
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        separators=["\n\n", "\n", ". ", " "]
-    )
+    all_chunks = []
 
     for pdf_path in pdf_files:
-        print(f"  Parsing: {pdf_path.name}")
+        print(f"  Parsing: {pdf_path.name} (Docling ML pipeline)...")
         try:
-            loader = PyPDFLoader(str(pdf_path))
-            pages = loader.load()
-            chunks = splitter.split_documents(pages)
-            # Add source metadata for citations
+            result = converter.convert(str(pdf_path))
+            doc = result.document
+
+            chunks = list(chunker.chunk(doc))
+
             for chunk in chunks:
-                chunk.metadata["source_file"] = pdf_path.name
-            all_docs.extend(chunks)
+                text = chunker.contextualize(chunk)
+                if not text.strip():
+                    continue
+
+                meta = chunk.meta or {}
+                page_no = 0
+                if meta.doc_items and meta.doc_items[0].prov:
+                    page_no = meta.doc_items[0].prov[0].page_no
+
+                headings_str = ""
+                if meta.headings:
+                    headings_str = " > ".join(meta.headings)
+
+                all_chunks.append({
+                    "text": text,
+                    "source_file": pdf_path.name,
+                    "page": page_no,
+                    "headings": headings_str,
+                })
+
+            print(f"    -> {len(chunks)} chunks extracted")
+
         except Exception as e:
             print(f"  Error parsing {pdf_path.name}: {e}")
+            print(f"    Falling back to basic text extraction...")
+            fallback_chunks = _fallback_parse(pdf_path)
+            all_chunks.extend(fallback_chunks)
 
-    if not all_docs:
-        print("No documents were successfully parsed.")
+    return all_chunks
+
+
+def _fallback_parse(pdf_path):
+    """Fallback parser using pypdf when Docling fails on a specific file."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(str(pdf_path))
+        chunks = []
+        chunk_size = 1000
+        chunk_overlap = 200
+
+        for page_num, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            if not text.strip():
+                continue
+            start = 0
+            while start < len(text):
+                end = start + chunk_size
+                chunk_text = text[start:end]
+                if chunk_text.strip():
+                    chunks.append({
+                        "text": chunk_text,
+                        "source_file": pdf_path.name,
+                        "page": page_num + 1,
+                        "headings": "",
+                    })
+                start += chunk_size - chunk_overlap
+
+        print(f"    -> {len(chunks)} chunks (fallback pypdf)")
+        return chunks
+    except Exception as e:
+        print(f"    Fallback also failed: {e}")
+        return []
+
+
+def ingest(scope="local", enable_ocr=False):
+    """Main ingestion pipeline."""
+    sources_dir, store_dir = get_paths(scope)
+
+    if not sources_dir.exists():
+        print(f"No sources directory found at {sources_dir}")
+        print("Create it and add PDF files, then run again.")
         sys.exit(1)
 
-    print(f"Total chunks: {len(all_docs)}")
+    # Parse PDFs with Docling
+    chunks = parse_with_docling(sources_dir, enable_ocr=enable_ocr)
+    if not chunks:
+        print("No text extracted from PDFs.")
+        sys.exit(1)
 
-    # Create/update vector store
-    print(f"Building vector store at {store_dir}...")
+    print(f"\nTotal chunks: {len(chunks)}")
+
+    # Load embeddings
+    embed_fn, dim = load_embeddings()
+
+    # Generate embeddings in batches
+    print("Generating embeddings...")
+    batch_size = 64
+    all_embeddings = []
+    texts = [c["text"] for c in chunks]
+
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        embeddings = embed_fn(batch)
+        all_embeddings.extend(embeddings)
+        print(f"  Embedded {min(i + batch_size, len(texts))}/{len(texts)}")
+
+    # Build records for LanceDB
+    records = []
+    for chunk, embedding in zip(chunks, all_embeddings):
+        records.append({
+            "text": chunk["text"],
+            "source_file": chunk["source_file"],
+            "page": chunk["page"],
+            "headings": chunk.get("headings", ""),
+            "vector": embedding,
+        })
+
+    # Store in LanceDB
+    try:
+        import lancedb
+    except ImportError:
+        print("lancedb not installed. Run: pip install lancedb")
+        sys.exit(1)
+
     store_dir.mkdir(parents=True, exist_ok=True)
+    db = lancedb.connect(str(store_dir))
 
-    vectorstore = Chroma.from_documents(
-        documents=all_docs,
-        embedding=embeddings,
-        persist_directory=str(store_dir)
-    )
+    table_name = "global_docs" if scope == "global" else "project_docs"
 
-    print(f"Done. {len(all_docs)} chunks indexed.")
-    return vectorstore
+    if table_name in db.table_names():
+        db.drop_table(table_name)
+
+    table = db.create_table(table_name, data=records)
+    print(f"\nDone. {len(records)} chunks indexed in '{table_name}' at {store_dir}")
+
+    return table
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ingest PDFs into RAG database.")
-    parser.add_argument("--scope", choices=["local", "global"], default="local", help="Choose local or global AgentBrain database.")
+    parser = argparse.ArgumentParser(description="Ingest PDFs into LanceDB (Docling parser).")
+    parser.add_argument("--scope", choices=["local", "global"], default="local",
+                        help="Choose local project or global AgentBrain database.")
+    parser.add_argument("--ocr", action="store_true",
+                        help="Enable full-page OCR for scanned PDFs (slower).")
     args = parser.parse_args()
-    
-    ingest(scope=args.scope)
+    ingest(scope=args.scope, enable_ocr=args.ocr)

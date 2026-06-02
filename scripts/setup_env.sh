@@ -1,5 +1,6 @@
 #!/bin/bash
-# Setup global AgentBrain Python environment
+# Setup global AgentBrain Python environment.
+# Prefers uv for speed, falls back to pip.
 
 set -e
 
@@ -9,17 +10,34 @@ VENV_PATH="$BRAIN_ROOT/.venv"
 
 echo "=== Setup Global AgentBrain Environment ==="
 
-if [[ ! -d "$VENV_PATH" ]]; then
-    echo "Creating virtual environment at $VENV_PATH..."
-    python3 -m venv "$VENV_PATH"
+# Create venv
+if command -v uv &>/dev/null; then
+    echo "Using uv (fast mode)."
+    if [[ ! -d "$VENV_PATH" ]]; then
+        uv venv "$VENV_PATH"
+    fi
+    uv pip install --python "$VENV_PATH/bin/python" --upgrade pip
+    uv pip install --python "$VENV_PATH/bin/python" -q \
+        python-dotenv \
+        docling \
+        lancedb \
+        pypdf \
+        sentence-transformers \
+        google-generativeai
 else
-    echo "Virtual environment already exists at $VENV_PATH."
+    echo "uv not found, using pip. Consider installing uv for faster setup."
+    if [[ ! -d "$VENV_PATH" ]]; then
+        python3 -m venv "$VENV_PATH"
+    fi
+    source "$VENV_PATH/bin/activate"
+    pip install --upgrade pip
+    pip install -q \
+        python-dotenv \
+        docling \
+        lancedb \
+        pypdf \
+        sentence-transformers \
+        google-generativeai
 fi
-
-source "$VENV_PATH/bin/activate"
-
-echo "Installing global RAG dependencies..."
-pip install --upgrade pip
-pip install -q langchain langchain-community chromadb pypdf google-generativeai sentence-transformers
 
 echo "Global AgentBrain environment is ready!"
