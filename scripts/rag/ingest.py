@@ -22,7 +22,9 @@ def get_paths(scope):
         return root / "rag" / "sources", root / "rag" / "db"
     else:
         root = Path.cwd()
-        return root / "data" / "sources", root / ".ai" / "rag" / "db"
+        project_name = root.name
+        store_dir = Path.home() / ".agentbrain" / "rag" / "local_dbs" / project_name
+        return root / "data" / "sources", store_dir
 
 
 def load_embeddings():

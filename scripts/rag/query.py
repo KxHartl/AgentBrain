@@ -64,17 +64,15 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
     embed_fn = load_embed_fn()
     query_vec = embed_fn(question)
 
-    root = Path.cwd()
+    local_db_path, global_db_path = get_paths()
     results = []
 
     stores = []
     if scope in ("local", "both"):
-        local_db_path = root / ".ai" / "rag" / "db"
         if local_db_path.exists():
             stores.append(("LOCAL", str(local_db_path), "project_docs", local_weight))
 
     if scope in ("global", "both"):
-        global_db_path = Path.home() / ".agentbrain" / "rag" / "db"
         if global_db_path.exists():
             stores.append(("GLOBAL", str(global_db_path), "global_docs", global_weight))
 
