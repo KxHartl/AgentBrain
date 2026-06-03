@@ -1,18 +1,16 @@
 """
-LiteRealm RAG — Query pipeline with source citations.
-Searches the vector store and returns answers with references.
+LiteRealm RAG — Query pipeline with source citations (LanceDB).
+Searches the LanceDB vector store and returns answers with references.
 
 Usage:
     python .ai/rag/query.py "Što je autonomni viličar?"
 """
 
-import os
 import sys
 from pathlib import Path
 
-
-def load_vectorstore(root):
-    """Load existing ChromaDB vector store."""
+def query(question: str, k: int = 5) -> list[dict]:
+    root = Path.cwd()
     store_dir = root / ".ai" / "rag" / "db"
 
     if not store_dir.exists():
@@ -20,58 +18,41 @@ def load_vectorstore(root):
         print("  python .ai/rag/ingest.py")
         sys.exit(1)
 
-    from dotenv import load_dotenv
-    load_dotenv(root / ".env")
+    try:
+        import lancedb
+        from lancedb.embeddings import get_registry
+        from dotenv import load_dotenv
+        import os
+        
+        load_dotenv(root / ".env")
+        # We need to register the same embedding function so LanceDB knows how to embed the query
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if api_key:
+            func = get_registry().get("gemini").create(name="models/embedding-001")
+        else:
+            func = get_registry().get("sentence-transformers").create(name="all-MiniLM-L6-v2")
+            
+    except ImportError:
+        print("Missing dependency: lancedb, python-dotenv, or embedding providers")
+        sys.exit(1)
 
-    # Match the embedding provider used during ingestion
-    embeddings = None
-    api_key = os.environ.get("GEMINI_API_KEY")
+    db = lancedb.connect(str(store_dir))
+    if "documents" not in db.table_names():
+        print("Table 'documents' not found in vector store.")
+        sys.exit(1)
 
-    if api_key:
-        try:
-            from langchain_community.embeddings import GoogleGenerativeAIEmbeddings
-            embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001",
-                google_api_key=api_key
-            )
-        except Exception:
-            pass
-
-    if embeddings is None:
-        try:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
-            embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        except ImportError:
-            print("No embedding provider. Set GEMINI_API_KEY or install sentence-transformers.")
-            sys.exit(1)
-
-    from langchain_community.vectorstores import Chroma
-    return Chroma(
-        persist_directory=str(store_dir),
-        embedding_function=embeddings
-    )
-
-
-def query(question: str, k: int = 5) -> list[dict]:
-    """
-    Query the RAG vector store. Returns list of relevant chunks with metadata.
-    Each result has: content, source_file, page.
-    """
-    root = Path.cwd()
-    vectorstore = load_vectorstore(root)
-
-    results = vectorstore.similarity_search(question, k=k)
+    table = db.open_table("documents")
+    results = table.search(question).limit(k).to_list()
 
     output = []
-    for doc in results:
+    for r in results:
         output.append({
-            "content": doc.page_content,
-            "source_file": doc.metadata.get("source_file", "unknown"),
-            "page": doc.metadata.get("page", "?"),
+            "content": r.get("text", ""),
+            "source_file": r.get("source_file", "unknown"),
+            "page": r.get("page", "?"),
         })
 
     return output
-
 
 def main():
     if len(sys.argv) < 2:
@@ -93,7 +74,6 @@ def main():
         print(f"Source: {r['source_file']}, Page: {r['page']}")
         print(f"Content: {r['content'][:500]}...")
 
-    # Print citation summary
     print("\n" + "=" * 60)
     print("Izvori:")
     sources = set()
@@ -101,7 +81,6 @@ def main():
         sources.add(f"  [{r['source_file']}, str. {r['page']}]")
     for s in sorted(sources):
         print(s)
-
 
 if __name__ == "__main__":
     main()

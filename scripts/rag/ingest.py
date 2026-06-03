@@ -1,6 +1,6 @@
 """
-LiteRealm RAG — Document ingestion pipeline.
-Parses PDFs from data/sources/ into a ChromaDB vector store in .ai/rag/db.
+LiteRealm RAG — Document ingestion pipeline (Docling + LanceDB).
+Parses PDFs from data/sources/ into a LanceDB vector store in .ai/rag/db.
 
 Usage:
     python .ai/rag/ingest.py
@@ -27,85 +27,86 @@ def ingest():
 
     print(f"Found {len(pdf_files)} PDF(s) in {sources_dir}")
 
-    # Import dependencies (installed by bootstrap)
     try:
-        from langchain_community.document_loaders import PyPDFLoader
-        from langchain.text_splitter import RecursiveCharacterTextSplitter
-        from langchain_community.vectorstores import Chroma
+        from docling.document_converter import DocumentConverter
+        from docling.chunking import HierarchicalChunker
+        import lancedb
+        from lancedb.pydantic import LanceModel, Vector
+        from lancedb.embeddings import get_registry
     except ImportError as e:
         print(f"Missing dependency: {e}")
-        print("Run bootstrap with -Rag cloud or -Rag local to install RAG packages.")
+        print("Run bootstrap to install docling and lancedb.")
         sys.exit(1)
 
-    # Try cloud embeddings first, fall back to local
-    embeddings = None
+    # Initialize LanceDB Embeddings
     try:
         from dotenv import load_dotenv
         load_dotenv(root / ".env")
-
         api_key = os.environ.get("GEMINI_API_KEY")
+        
         if api_key:
-            from langchain_community.embeddings import GoogleGenerativeAIEmbeddings
-            embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001",
-                google_api_key=api_key
-            )
+            func = get_registry().get("gemini").create(name="models/embedding-001")
             print("Using Gemini cloud embeddings.")
-    except Exception:
-        pass
+        else:
+            func = get_registry().get("sentence-transformers").create(name="all-MiniLM-L6-v2")
+            print("Using local sentence-transformers embeddings.")
+    except Exception as e:
+        print(f"Failed to load embedding model: {e}")
+        sys.exit(1)
 
-    if embeddings is None:
-        try:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
-            embeddings = HuggingFaceEmbeddings(
-                model_name="all-MiniLM-L6-v2"
-            )
-            print("Using local HuggingFace embeddings.")
-        except ImportError:
-            print("No embedding provider available.")
-            print("Set GEMINI_API_KEY in .env or install sentence-transformers.")
-            sys.exit(1)
+    # Define LanceDB schema
+    class DocumentChunk(LanceModel):
+        text: str = func.SourceField()
+        vector: Vector(func.ndims()) = func.VectorField()
+        source_file: str
+        page: str
 
-    # Load and split documents
-    all_docs = []
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        separators=["\n\n", "\n", ". ", " "]
-    )
+    print(f"Connecting to LanceDB at {store_dir}...")
+    store_dir.mkdir(parents=True, exist_ok=True)
+    db = lancedb.connect(str(store_dir))
+    table = db.create_table("documents", schema=DocumentChunk, mode="overwrite")
 
+    # Process PDFs
+    converter = DocumentConverter()
+    chunker = HierarchicalChunker()
+    
+    total_chunks = 0
+    
     for pdf_path in pdf_files:
         print(f"  Parsing: {pdf_path.name}")
         try:
-            loader = PyPDFLoader(str(pdf_path))
-            pages = loader.load()
-            chunks = splitter.split_documents(pages)
-            # Add source metadata for citations
+            result = converter.convert(str(pdf_path))
+            doc = result.document
+            
+            chunks = list(chunker.chunk(doc))
+            
+            data = []
             for chunk in chunks:
-                chunk.metadata["source_file"] = pdf_path.name
-            all_docs.extend(chunks)
+                page_num = "?"
+                if getattr(chunk.meta, "doc_items", None):
+                    for item in chunk.meta.doc_items:
+                        if getattr(item, "prov", None):
+                            page_num = str(item.prov[0].page_no)
+                            break
+                            
+                data.append({
+                    "text": chunk.text,
+                    "source_file": pdf_path.name,
+                    "page": page_num
+                })
+                
+            if data:
+                table.add(data)
+                total_chunks += len(data)
+                
         except Exception as e:
             print(f"  Error parsing {pdf_path.name}: {e}")
 
-    if not all_docs:
+    if total_chunks == 0:
         print("No documents were successfully parsed.")
         sys.exit(1)
 
-    print(f"Total chunks: {len(all_docs)}")
-
-    # Create/update vector store
-    print(f"Building vector store at {store_dir}...")
-    store_dir.mkdir(parents=True, exist_ok=True)
-
-    vectorstore = Chroma.from_documents(
-        documents=all_docs,
-        embedding=embeddings,
-        persist_directory=str(store_dir)
-    )
-
-    print(f"Done. {len(all_docs)} chunks indexed.")
-    return vectorstore
-
+    print(f"Done. {total_chunks} chunks indexed in LanceDB.")
 
 if __name__ == "__main__":
     ingest()
