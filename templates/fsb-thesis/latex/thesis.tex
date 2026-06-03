@@ -1,6 +1,11 @@
 \documentclass[12pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
+\usepackage{iftex}
+\ifPDFTeX
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+\else
+    \usepackage{fontspec}
+\fi
 \usepackage[croatian]{babel}
 \usepackage{geometry}
 \usepackage{graphicx}
@@ -13,7 +18,15 @@
 \usepackage{tabularx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{mathptmx}       % Times New Roman font
+\ifPDFTeX
+    \usepackage{tgtermes}       % Times New Roman font
+\else
+    \setmainfont{texgyretermes-regular.otf}[
+      BoldFont = texgyretermes-bold.otf,
+      ItalicFont = texgyretermes-italic.otf,
+      BoldItalicFont = texgyretermes-bolditalic.otf
+    ] % Times New Roman font (XeTeX/LuaTeX)
+\fi
 \usepackage{chngcntr}       % Za numeriranje po poglavljima
 
 % Postavke margina (matching Word: left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm)

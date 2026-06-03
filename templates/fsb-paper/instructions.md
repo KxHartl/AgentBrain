@@ -36,7 +36,7 @@ keywords: "ključna riječ 1, ključna riječ 2, ključna riječ 3"
 | Literatura     | `# LITERATURA`    | `\begin{thebibliography}`   | 10pt Bold UPPERCASE     |
 
 ## 3. Typography & Formatting Rules
-- **Font:** Times New Roman (LaTeX: `mathptmx` package)
+- **Font:** Times New Roman (LaTeX: `tgtermes` ili `texgyretermes` fontspec)
 - **Body text:** 10pt, single spacing
 - **Layout:** Two-column, 0.7cm column separation
 - **Margins:** 1.8cm left/right, 2.2cm top/bottom
