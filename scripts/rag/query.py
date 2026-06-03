@@ -2,8 +2,8 @@
 LiteRealm RAG — Query pipeline with source citations (LanceDB).
 Searches the LanceDB vector store and returns answers with references.
 
-Usage:
-    python .ai/rag/query.py "Što je autonomni viličar?"
+Usage (run from the LiteRealm project root):
+    python ~/.agentbrain/scripts/rag/query.py "Što je autonomni viličar?"
 """
 
 import sys

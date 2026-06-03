@@ -2,8 +2,8 @@
 LiteRealm RAG — Document ingestion pipeline (Docling + LanceDB).
 Parses PDFs from data/sources/ into a LanceDB vector store in .ai/rag/db.
 
-Usage:
-    python .ai/rag/ingest.py
+Usage (run from the LiteRealm project root):
+    python ~/.agentbrain/scripts/rag/ingest.py
 """
 
 import os
