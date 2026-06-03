@@ -1,29 +1,138 @@
-# AgentBrain 🧠
+# AgentBrain
 
-The Single Source of Truth (SSOT) for local AI Agent skills, prompts, and architectural patterns. This repository is designed to be the foundational knowledge base for LangGraph, CrewAI, and Docling-based RAG systems.
+The global toolkit for **LiteRealm** projects — templates, agent definitions, RAG scripts, and skills. Shared across all LiteRealm projects on this machine.
 
-## 📂 Directory Structure
-
-- **`/skills`**: Standardized engineering workflows and multi-agent architectural patterns.
-- **`/prompts`**: Advanced reasoning templates (CoT, ReAct, ToT) and security/adversarial defense strategies.
-- **`/gotchas`**: Documented failure modes, edge cases, and "what NOT to do" for AI agents.
-
-## 📜 Standardized Format (`_TEMPLATE.md`)
-
-All knowledge in this repository MUST follow the strict metadata and structure format defined in `_TEMPLATE.md`:
-
-1.  **Metadata Block**: Domain, Type, and Author. Must be under 100 tokens.
-2.  **Title**: Clear, descriptive name of the skill or prompt.
-3.  **Context**: *When* and *why* an AI agent should use this knowledge.
-4.  **Solution**: The actual logic, code, or instruction.
-5.  **Gotchas / Warnings**: Critical constraints and failure modes.
-
-## 🛠 Usage for AI Agents
-
-Future AI agents interacting with this workspace are **commanded** to:
-- Reference these files to align with existing engineering standards (e.g., TDD, Diagnose loop).
-- Use the advanced reasoning prompts when faced with complex logic or external tool requirements.
-- Abide by the formatting rules when injecting new knowledge into this repository.
+Installed at `~/.agentbrain` by the LiteRealm bootstrap script.
 
 ---
-*Initialized on Monday, 11 May 2026.*
+
+## Directory Structure
+
+```
+~/.agentbrain/
+├── agents/          ← specialized agent definitions (role, triggers, permissions)
+├── templates/       ← LaTeX project templates per document type
+├── scripts/
+│   ├── rag/
+│   │   ├── ingest.py       ← index PDFs into LanceDB
+│   │   └── query.py        ← search the vector store
+│   ├── add_citation.py     ← fetch BibTeX from DOI
+│   ├── setup_env.ps1       ← install Python dependencies (Windows)
+│   └── setup_env.sh        ← install Python dependencies (Linux/macOS)
+├── skills/          ← reusable AI workflows (diagnose, TDD, git workflow...)
+├── gotchas/         ← documented failure modes and warnings for agents
+├── prompts/         ← reasoning templates (CoT, ReAct, ToT)
+├── rag/
+│   ├── db/          ← global LanceDB vector store (AgentBrain sources)
+│   └── sources/     ← global PDF sources (cross-project reference material)
+├── manifest.yaml    ← version contract with LiteRealm projects
+└── _TEMPLATE.md     ← format template for new skills/gotchas
+```
+
+---
+
+## Setup
+
+The Python environment is set up automatically by LiteRealm's `bootstrap.ps1` / `bootstrap.sh` when `-Rag local` or `global` is requested. To set it up manually:
+
+**Windows:**
+```powershell
+~/.agentbrain/scripts/setup_env.ps1
+```
+
+**Linux / macOS:**
+```bash
+~/.agentbrain/scripts/setup_env.sh
+```
+
+Installs: `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `python-dotenv`, `pypdf`
+
+Prefers `uv` for speed; falls back to `pip`.
+
+---
+
+## Agents
+
+Six specialized agents are defined in `agents/`. Each has a YAML header declaring its **role**, **triggers** (phrases that activate it), **writes_to** (directories it may write to), and **never_touches** (hard access restrictions).
+
+| Agent | Role | Key restriction |
+|---|---|---|
+| `latex_architect` | Set up `docs/` LaTeX structure | Never overwrites existing `main.tex` |
+| `data_fetcher` | Find and download literature | Never writes to `docs/` or `src/` |
+| `writer` | Write academic LaTeX content | Never overwrites entire `.tex` files |
+| `qa_reviewer` | Review and critique content | **Read-only** — only writes `docs/REVIEW.md` |
+| `latex_surgeon` | Fix LaTeX compilation errors | Never rewrites content, only compilation fixes |
+| `rag_indexer` | Maintain RAG vector database | Never touches `data/sources/` (read-only for it) |
+
+**Pipeline order**: `latex_architect` → `data_fetcher` → `writer` → `qa_reviewer` → `latex_surgeon` → `rag_indexer`
+
+---
+
+## Templates
+
+Available in `templates/`:
+
+| Template | Directory | Format |
+|---|---|---|
+| FSB Seminar | `fsb-seminar/` | 12pt, A4, Times New Roman |
+| FSB Thesis | `fsb-thesis/` | 12pt, A4, with TOC/lists |
+| FSB Paper | `fsb-paper/` | 10pt, two-column |
+| FSB Presentation | `fsb-presentation/` | Beamer slides |
+| FSB Video | `fsb-video/` | Script/storyboard format |
+
+Each template contains:
+- `latex/` — `.tex` source files
+- `demo.pdf` — compiled example
+- `instructions.md` — AI agent instructions for this format
+- `structure.md` — document skeleton
+
+See `templates/README.md` for full details.
+
+---
+
+## RAG Scripts
+
+```bash
+# Index PDFs from data/sources/ into the local project database
+python ~/.agentbrain/scripts/rag/ingest.py
+
+# Index with OCR (for scanned PDFs)
+python ~/.agentbrain/scripts/rag/ingest.py --ocr
+
+# Index into the global AgentBrain database
+python ~/.agentbrain/scripts/rag/ingest.py --scope global
+
+# Query the vector store
+python ~/.agentbrain/scripts/rag/query.py "Your question" --scope both
+
+# Auto-generate BibTeX from DOI
+python ~/.agentbrain/scripts/add_citation.py --doi "10.1109/TRO.2024.1234567"
+```
+
+**Embeddings**: uses Gemini cloud (`GEMINI_API_KEY` in `.env`) if available, otherwise falls back to local `sentence-transformers` (`all-MiniLM-L6-v2`).
+
+---
+
+## Version Contract
+
+`manifest.yaml` declares the AgentBrain version. LiteRealm's bootstrap stamps the version into the project's `project.yaml` (`agentbrain_version` field). This creates a traceable link between each project and the AgentBrain version it was initialized with.
+
+Current version: **2.0.0** — requires LiteRealm ≥ 2.0.0.
+
+---
+
+## Adding New Knowledge
+
+All knowledge files (`skills/`, `gotchas/`, `prompts/`) must follow the format in `_TEMPLATE.md`:
+
+```markdown
+---
+domain: [python | rag | latex | workflow | ...]
+type: [skill | gotcha | prompt]
+author: [your-id or AI]
+---
+# Title
+## Context
+## Solution
+## Gotchas / Warnings
+```

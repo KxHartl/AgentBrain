@@ -21,12 +21,13 @@ Tri akademska predloška za FSB (Fakultet strojarstva i brodogradnje), Sveučili
 
 ```
 predložak/
-├── latex/          # LaTeX izvorni fajlovi (.tex)
-├── word/           # Word verzija (.docx) + referentni PDF
-├── demo.pdf        # Primjer kompajliranog dokumenta
-├── instructions.md # Upute za AI agenta
-└── structure.md    # Skeleton strukture dokumenta
+├── latex/          # LaTeX source files (.tex)
+├── demo.pdf        # compiled example
+├── instructions.md # AI agent instructions for this format
+└── structure.md    # document skeleton
 ```
+
+> `word/` directories exist in some templates as legacy reference only. Agents **never** use Word files — LaTeX only.
 
 ## LaTeX paketi
 
