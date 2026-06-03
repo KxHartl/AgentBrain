@@ -1,8 +1,13 @@
 \documentclass[12pt,a4paper]{article}
 \usepackage{cmap}           % Omogućuje kopiranje teksta s našim znakovima iz PDF-a
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}        % Pomoćni font za T1 encoding (č, ć, ž, š, đ)
+\usepackage{iftex}
+\ifPDFTeX
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+    \usepackage{lmodern}        % Pomoćni font za T1 encoding (č, ć, ž, š, đ)
+\else
+    \usepackage{fontspec}
+\fi
 \usepackage[croatian]{babel}
 \usepackage{geometry}
 \usepackage{graphicx}
@@ -15,7 +20,15 @@
 \usepackage{tabularx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{mathptmx}       % Times New Roman font
+\ifPDFTeX
+    \usepackage{tgtermes}       % Times New Roman font (pdfTeX)
+\else
+    \setmainfont{texgyretermes-regular.otf}[
+      BoldFont = texgyretermes-bold.otf,
+      ItalicFont = texgyretermes-italic.otf,
+      BoldItalicFont = texgyretermes-bolditalic.otf
+    ] % Times New Roman font (XeTeX/LuaTeX)
+\fi
 \usepackage{chngcntr}       % Za numeriranje po poglavljima
 
 % Postavke margina

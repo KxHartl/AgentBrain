@@ -54,7 +54,7 @@ abstract_en: "Abstract text in English"
 | Prilozi                        | `# PRILOZI`          | `\section*{PRILOZI}`            | 14pt Bold UPPERCASE   |
 
 ## 3. Typography & Formatting Rules
-- **Font:** Times New Roman (LaTeX: `mathptmx` package)
+- **Font:** Times New Roman (LaTeX: `tgtermes` ili `texgyretermes` fontspec)
 - **Body text:** 12pt, 1.5 line spacing
 - **Margins:** 2.5cm all sides
 - **Page numbering:** Roman (I, II, III...) for front matter, Arabic (1, 2, 3...) for body
