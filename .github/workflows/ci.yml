@@ -1,0 +1,38 @@
+name: AgentBrain CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  brain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tectonic
+        uses: wtfjoke/setup-tectonic@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install RAG deps (lightweight — no Docling)
+        run: pip install --quiet lancedb sentence-transformers pypdf python-dotenv
+
+      - name: Lint agent frontmatter
+        run: python tests/lint-agents.py
+
+      - name: Byte-compile scripts
+        run: python -m py_compile scripts/render_template.py scripts/add_citation.py scripts/rag/ingest.py scripts/rag/query.py
+
+      - name: Compile every LaTeX template (Croatian glyphs + bold)
+        run: bash tests/compile-template.sh
+
+      - name: RAG roundtrip (ingest -> query, local embeddings)
+        run: bash tests/rag-roundtrip.sh
