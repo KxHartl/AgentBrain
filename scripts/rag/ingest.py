@@ -42,10 +42,10 @@ def load_embeddings():
                     content=texts if isinstance(texts, list) else [texts],
                     task_type="retrieval_document"
                 )
-                return result["embedding"] if isinstance(texts, str) else result["embedding"]
+                return result["embedding"]
 
             print("Using Gemini cloud embeddings.")
-            return embed_fn, 768
+            return embed_fn, 768, "gemini:models/embedding-001"
         except Exception as e:
             print(f"  Gemini failed ({e}), trying local...")
 
@@ -59,7 +59,7 @@ def load_embeddings():
             return model.encode(texts).tolist()
 
         print("Using local HuggingFace embeddings (all-MiniLM-L6-v2).")
-        return embed_fn, 384
+        return embed_fn, 384, "local:all-MiniLM-L6-v2"
     except ImportError:
         print("No embedding provider available.")
         print("Set GEMINI_API_KEY in .env or: pip install sentence-transformers")
@@ -121,14 +121,14 @@ def parse_with_docling(sources_dir, enable_ocr=False):
                 if not text.strip():
                     continue
 
-                meta = chunk.meta or {}
+                meta = chunk.meta
                 page_no = 0
-                if meta.doc_items and meta.doc_items[0].prov:
-                    page_no = meta.doc_items[0].prov[0].page_no
+                doc_items = getattr(meta, "doc_items", None)
+                if doc_items and doc_items[0].prov:
+                    page_no = doc_items[0].prov[0].page_no
 
-                headings_str = ""
-                if meta.headings:
-                    headings_str = " > ".join(meta.headings)
+                headings = getattr(meta, "headings", None)
+                headings_str = " > ".join(headings) if headings else ""
 
                 all_chunks.append({
                     "text": text,
@@ -181,7 +181,24 @@ def _fallback_parse(pdf_path):
         return []
 
 
-def ingest(scope="local", enable_ocr=False):
+def parse_fast(sources_dir):
+    """Lightweight pypdf-only parsing — skips the ~500MB Docling ML pipeline.
+
+    Used by --fast (and CI smoke tests) where layout-aware parsing is not needed.
+    """
+    pdf_files = list(sources_dir.glob("*.pdf"))
+    if not pdf_files:
+        print(f"No PDF files found in {sources_dir}")
+        sys.exit(1)
+    print(f"Found {len(pdf_files)} PDF(s) in {sources_dir} (fast pypdf mode)")
+    all_chunks = []
+    for pdf_path in pdf_files:
+        print(f"  Parsing: {pdf_path.name} (pypdf)...")
+        all_chunks.extend(_fallback_parse(pdf_path))
+    return all_chunks
+
+
+def ingest(scope="local", enable_ocr=False, fast=False):
     """Main ingestion pipeline."""
     sources_dir, store_dir = get_paths(scope)
 
@@ -190,8 +207,8 @@ def ingest(scope="local", enable_ocr=False):
         print("Create it and add PDF files, then run again.")
         sys.exit(1)
 
-    # Parse PDFs with Docling
-    chunks = parse_with_docling(sources_dir, enable_ocr=enable_ocr)
+    # Parse PDFs (fast pypdf, or layout-aware Docling)
+    chunks = parse_fast(sources_dir) if fast else parse_with_docling(sources_dir, enable_ocr=enable_ocr)
     if not chunks:
         print("No text extracted from PDFs.")
         sys.exit(1)
@@ -199,7 +216,7 @@ def ingest(scope="local", enable_ocr=False):
     print(f"\nTotal chunks: {len(chunks)}")
 
     # Load embeddings
-    embed_fn, dim = load_embeddings()
+    embed_fn, dim, model_id = load_embeddings()
 
     # Generate embeddings in batches
     print("Generating embeddings...")
@@ -240,7 +257,17 @@ def ingest(scope="local", enable_ocr=False):
         db.drop_table(table_name)
 
     table = db.create_table(table_name, data=records)
+
+    # Record which embedding model/dim built this index so query.py can match it
+    # (prevents a silent dimension mismatch when the query-time model differs).
+    import json
+    (store_dir / "embedding_meta.json").write_text(
+        json.dumps({"model": model_id, "dim": dim, "table": table_name}, indent=2),
+        encoding="utf-8",
+    )
+
     print(f"\nDone. {len(records)} chunks indexed in '{table_name}' at {store_dir}")
+    print(f"Embedding model: {model_id} (dim {dim})")
 
     return table
 
@@ -251,5 +278,7 @@ if __name__ == "__main__":
                         help="Choose local project or global AgentBrain database.")
     parser.add_argument("--ocr", action="store_true",
                         help="Enable full-page OCR for scanned PDFs (slower).")
+    parser.add_argument("--fast", action="store_true",
+                        help="Skip Docling ML pipeline; use lightweight pypdf parsing (CI/smoke).")
     args = parser.parse_args()
-    ingest(scope=args.scope, enable_ocr=args.ocr)
+    ingest(scope=args.scope, enable_ocr=args.ocr, fast=args.fast)
