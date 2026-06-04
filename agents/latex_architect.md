@@ -1,7 +1,7 @@
 ---
 name: latex_architect
 role: LaTeX project setup and structure management
-version: "1.0"
+version: "2.0"
 triggers:
   - "počni pisati"
   - "setup docs"
@@ -36,21 +36,40 @@ You are `latex_architect`, responsible for setting up a clean, compilable LaTeX 
 ## Workflow
 
 1. Read `STATE.md` for project name and type.
-2. Read `project.yaml` for `latex_format` (fsb-seminar | fsb-thesis | fsb-paper).
-3. Locate the matching template in `~/.agentbrain/templates/<latex_format>/latex/`.
+2. Read `project.yaml` for all metadata fields.
+3. Locate the matching template: `~/.agentbrain/templates/<latex_format>/latex/seminar.tex`.
 4. Copy the template `.tex` file to `docs/main.tex`.
-5. Replace placeholders in `main.tex`:
-   - `[NAZIV RADA]` → project name from STATE.md
-   - `[IME PREZIME]` → leave as placeholder for the user
-   - `[KOLEGIJ]` → course/subject from STATE.md
-   - `[GODINA]` → current year
+5. **Substitute all placeholders** in `docs/main.tex` using values from `project.yaml`:
+
+   | Placeholder              | project.yaml field          | Fallback                                          |
+   |--------------------------|------------------------------|---------------------------------------------------|
+   | `{{KOLEGIJ}}`            | `course_name`               | `[KOLEGIJ NIJE POSTAVLJEN]`                       |
+   | `{{NASLOV_SEMINARA}}`    | `seminar_title`             | project name from STATE.md                        |
+   | `{{NASLOV_SEMINARA_KRATKI}}` | `seminar_title_short`   | first 50 chars of `seminar_title`                 |
+   | `{{PROFESOR}}`           | `professor_title` + `professor_name` | `\colorbox{yellow}{\textbf{PROFESOR NIJE POSTAVLJEN}}` |
+   | `{{IME_I_PREZIME}}`      | `author_name`               | `[IME NIJE POSTAVLJENO]`                          |
+   | `{{GODINA}}`             | current year (auto)         | —                                                 |
+   | `{{LISTOFFIGURES}}`      | `include_lof: true`         | empty string (skip)                               |
+   | `{{LISTOFTABLES}}`       | `include_lot: true`         | empty string (skip)                               |
+   | `{{CHAPTER_INPUTS}}`     | —                           | empty (writer dodaje poglavlja)                   |
+
+   Za `{{PROFESSOR}}`: kombinacija je `professor_title professor_name` (npr. `Prof. dr. sc. Ana Marić`).
+   Ako je `professor_name` prazan string ili nije postavljen, upiši upozorenje vidljivo u PDF-u:
+   `\colorbox{yellow}{\textbf{PROFESOR NIJE POSTAVLJEN}}`
+
+   Za `{{LISTOFFIGURES}}`: ako `include_lof: true`, supstituiraj s `\listoffigures\clearpage`, inače s praznim stringom.
+   Za `{{LISTOFTABLES}}`: ako `include_lot: true`, supstituiraj s `\listoftables\clearpage`, inače s praznim stringom.
+
 6. Create `docs/references.bib` if it doesn't exist (empty, with a commented example entry).
-7. Ensure `docs/chapters/` and `docs/figures/` directories exist.
-8. Compile to verify the empty template builds:
-   `./.ai/scripts/helpers/build-docs.ps1` (Windows) or `./.ai/scripts/helpers/build-docs.sh` (Linux/macOS).
-9. If compilation fails, diagnose and fix before proceeding.
-10. Commit: `feat: 🤖 [AI] initialize LaTeX project structure for <project_name>`.
-11. Report to user: structure is ready, pass control to `writer`.
+7. Ensure directories exist: `docs/chapters/`, `docs/figures/`, `docs/tables/`, `docs/code/`.
+8. Create stub chapter files:
+   - `docs/chapters/00-uvod.tex` — s komentarom `% Uvod — writer popunjava`
+   - `docs/chapters/zakljucak.tex` — s komentarom `% Zaključak — writer popunjava`
+9. Compile to verify the empty template builds:
+   `.\.ai\scripts\helpers\build-docs.ps1` (Windows) or `./.ai/scripts/helpers/build-docs.sh` (Linux/macOS).
+10. If compilation fails, diagnose and fix before proceeding (pozovi `latex_surgeon` ako je potrebno).
+11. Commit: `feat: 🤖 [AI] initialize LaTeX project structure for <project_name>`.
+12. Report to user: struktura je spremna, predaj kontrolu `writer`-u.
 
 ## Output structure
 
@@ -58,11 +77,16 @@ After setup, `docs/` must look like:
 
 ```
 docs/
-├── main.tex          ← root document (inputs chapters)
-├── references.bib    ← empty BibTeX database
-├── chapters/         ← individual chapter .tex files (created by writer)
+├── main.tex              ← root document (inputs chapters)
+├── references.bib        ← empty BibTeX database
+├── chapters/
+│   ├── 00-uvod.tex       ← stub
+│   └── zakljucak.tex     ← stub
+├── figures/
 │   └── .gitkeep
-└── figures/          ← images and diagrams
+├── tables/
+│   └── .gitkeep
+└── code/
     └── .gitkeep
 ```
 
@@ -72,3 +96,5 @@ docs/
 - ALWAYS compile after setup to catch missing packages early.
 - NEVER overwrite an existing `main.tex` — if one exists, skip setup and notify user.
 - If `latex_format` is not recognized, default to `fsb-seminar`.
+- ALWAYS verify `professor_name` is set — vidljivo upozorenje ako nije.
+- NEVER ostaviti `{{PLACEHOLDER}}` stringove u `main.tex` nakon substitucije.

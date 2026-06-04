@@ -1,164 +1,156 @@
+% FSB Seminar — Sveučilište u Zagrebu, Fakultet strojarstva i brodogradnje
+% Template v2.1 — latex_architect popunjava placeholdere iz project.yaml
+
 \documentclass[12pt,a4paper]{article}
-\usepackage{cmap}           % Omogućuje kopiranje teksta s našim znakovima iz PDF-a
-\usepackage{iftex}
-\ifPDFTeX
-    \usepackage[utf8]{inputenc}
-    \usepackage[T1]{fontenc}
-    \usepackage{lmodern}        % Pomoćni font za T1 encoding (č, ć, ž, š, đ)
-\else
-    \usepackage{fontspec}
-\fi
+
+% --- Encoding & Language ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage[croatian]{babel}
-\usepackage{geometry}
-\usepackage{graphicx}
+
+% --- Font: newtxtext (Times-compatible, puni T1 bold za hrvatska slova ž,ć,š,đ) ---
+% NAPOMENA: NE koristiti mathptmx — nema Type1 bold za T1 extended (EC bitmap fonts).
+%           NE koristiti newtxmath zajedno s amssymb — nastaje \Bbbk konflikt.
+\usepackage{newtxtext}
+
+% --- Layout ---
+\usepackage[top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm]{geometry}
 \usepackage{setspace}
-\usepackage{titlesec}
-\usepackage{fancyhdr}
-\usepackage{caption}
-\usepackage{longtable}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\ifPDFTeX
-    \usepackage{tgtermes}       % Times New Roman font (pdfTeX)
-\else
-    \setmainfont{texgyretermes-regular.otf}[
-      BoldFont = texgyretermes-bold.otf,
-      ItalicFont = texgyretermes-italic.otf,
-      BoldItalicFont = texgyretermes-bolditalic.otf
-    ] % Times New Roman font (XeTeX/LuaTeX)
-\fi
-\usepackage{chngcntr}       % Za numeriranje po poglavljima
-
-% Postavke margina
-\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
-
-% Prored 1.5
 \onehalfspacing
 
-% ---- STILOVI NASLOVA ----
-% Section: nova stranica + bold uppercase
+% --- Headers & Footers ---
+\usepackage{fancyhdr}
+\setlength{\headheight}{13.6pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape \authorname}
+\fancyhead[R]{\small\itshape \seminartitleshort}
+\fancyfoot[L]{\small\itshape Fakultet strojarstva i brodogradnje}
+\fancyfoot[R]{\small\itshape\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% --- Section Formatting (14pt Bold Uppercase) ---
+\usepackage{titlesec}
 \titleformat{\section}
-  {\normalfont\large\bfseries\uppercase}{\thesection.}{0.5em}{}
+  {\normalfont\fontsize{14}{17}\bfseries\MakeUppercase}
+  {\thesection.}{0.5em}{}
 \titleformat{\subsection}
-  {\normalfont\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+  {\normalfont\fontsize{12}{15}\bfseries}
+  {\thesubsection.}{0.5em}{}
 \titleformat{\subsubsection}
-  {\normalfont\normalsize\bfseries\itshape}{\thesubsubsection.}{0.5em}{}
-\titleformat{\paragraph}[hang]
-  {\normalfont\normalsize\itshape}{\theparagraph.}{0.5em}{}
-\titlespacing*{\paragraph}{0pt}{3.25ex plus 1ex minus .2ex}{0.5em}
+  {\normalfont\fontsize{12}{15}\bfseries\itshape}
+  {\thesubsubsection.}{0.5em}{}
+\titleformat{\paragraph}[runin]
+  {\normalfont\fontsize{12}{15}\itshape}
+  {}{0em}{}[.]
 
-% Svaki \section počinje na novoj stranici
-\newcommand{\sectionbreak}{\clearpage}
+% --- Figures & Tables ---
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup[figure]{font={small,bf},labelsep=period,position=below}
+\captionsetup[table]{font={small,bf},labelsep=period,position=above}
 
-% ---- NUMERIRANJE SLIKA, TABLICA I JEDNADŽBI PO POGLAVLJIMA ----
+% --- Figure/Table numbering by section (Slika 2.1, Tablica 2.1) ---
+\usepackage{chngcntr}
 \counterwithin{figure}{section}
 \counterwithin{table}{section}
 \counterwithin{equation}{section}
 
-% Dubina numeriranja (do 4 razine)
+% --- Depth ---
 \setcounter{secnumdepth}{4}
 \setcounter{tocdepth}{4}
 
-% ---- NAZIVI AUTOMATSKIH POPISA (addto jer babel croatian overrida renewcommand) ----
+% --- Croatian names (addto — babel croatian overrida renewcommand) ---
 \addto\captionscroatian{%
-  \renewcommand{\contentsname}{SADRŽAJ}%
-  \renewcommand{\listfigurename}{POPIS SLIKA}%
-  \renewcommand{\listtablename}{POPIS TABLICA}%
-  \renewcommand{\refname}{LITERATURA}%
+  \renewcommand{\figurename}{Slika}%
+  \renewcommand{\tablename}{Tablica}%
+  \renewcommand{\contentsname}{\normalfont\fontsize{14}{17}\bfseries SADRŽAJ}%
+  \renewcommand{\listfigurename}{\normalfont\fontsize{14}{17}\bfseries POPIS SLIKA}%
+  \renewcommand{\listtablename}{\normalfont\fontsize{14}{17}\bfseries POPIS TABLICA}%
+  \renewcommand{\refname}{\normalfont\fontsize{14}{17}\bfseries LITERATURA}%
 }
 
-% ---- POTPISI SLIKA I TABLICA ----
-% Captions: 11pt Bold
-\captionsetup[figure]{font={small,bf},labelsep=period}
-\captionsetup[table]{font={small,bf},labelsep=period,position=above}
+% --- References ---
+\usepackage{cite}
 
-% ---- ZAGLAVLJE I PODNOŽJE ----
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[L]{\small\textit{{{IME_I_PREZIME}}}}
-\fancyhead[R]{\small\textit{Seminar}}
-\fancyfoot[L]{\small\textit{Fakultet strojarstva i brodogradnje}}
-\fancyfoot[R]{\small\textit{\thepage}}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand{\footrulewidth}{0.4pt}
+% --- Hyperlinks ---
+\usepackage[hidelinks,unicode]{hyperref}
 
+% --- Math ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% --- Color (za upozorenja o nepopunjenim placeholderima) ---
+\usepackage{xcolor}
+
+% --- Paragraph spacing ---
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% ============================================================
+% DOCUMENT METADATA — latex_architect popunjava iz project.yaml
+% ============================================================
+\newcommand{\univname}{SVEUČILIŠTE U ZAGREBU}
+\newcommand{\facultyname}{FAKULTET STROJARSTVA I BRODOGRADNJE}
+\newcommand{\coursename}{{{KOLEGIJ}}}
+\newcommand{\seminartitle}{{{NASLOV_SEMINARA}}}
+\newcommand{\seminartitleshort}{{{NASLOV_SEMINARA_KRATKI}}}
+\newcommand{\professorname}{{{PROFESOR}}}
+\newcommand{\authorname}{{{IME_I_PREZIME}}}
+\newcommand{\locationdate}{Zagreb, {{GODINA}}.}
+
+% ============================================================
 \begin{document}
 
-% =====================================================================
-% NASLOVNICA
-% =====================================================================
+% ---- TITLE PAGE ----
 \begin{titlepage}
-    \thispagestyle{empty}
-    \centering
-    {\fontsize{16pt}{19pt}\selectfont SVEUČILIŠTE U ZAGREBU\\}
-    {\fontsize{16pt}{19pt}\selectfont FAKULTET STROJARSTVA I BRODOGRADNJE\\}
-    \vfill
-    {\fontsize{28pt}{34pt}\selectfont\bfseries {{KOLEGIJ}}\\}
-    \vspace{0.5cm}
-    {\fontsize{28pt}{34pt}\selectfont\bfseries SEMINAR\\}
-    \vspace{1.5cm}
-    {\fontsize{16pt}{19pt}\selectfont\bfseries {{NASLOV_SEMINARA}}\\}
-    \vfill
-    \noindent
-    \begin{minipage}[t]{0.48\textwidth}
-        \raggedright
-        {\fontsize{14pt}{17pt}\selectfont Profesor:\\}
-        {\fontsize{14pt}{17pt}\selectfont {{PROFESOR}}\\}
-    \end{minipage}
-    \hfill
-    \begin{minipage}[t]{0.48\textwidth}
-        \raggedleft
-        {\fontsize{14pt}{17pt}\selectfont Student:\\}
-        {\fontsize{14pt}{17pt}\selectfont\bfseries {{IME_I_PREZIME}}\\}
-    \end{minipage}
-    \vspace{1cm}
-    \begin{center}
-        {\fontsize{14pt}{17pt}\selectfont Zagreb, {{GODINA}}.}
-    \end{center}
+  \centering
+  {\fontsize{14}{17}\selectfont \univname \par}
+  {\fontsize{14}{17}\selectfont \facultyname \par}
+  \vfill
+  {\fontsize{28}{34}\bfseries \coursename \par}
+  \vspace{0.8cm}
+  {\fontsize{14}{18}\bfseries \seminartitle \par}
+  \vfill
+  % Tabular: lijevo "Profesor:" / bold ime — desno "Student:" / bold ime
+  % \textmd i \textbf (ne \bfseries/\normalfont — ne rade pouzdano u p{} ćelijama)
+  \begin{tabular}{p{0.45\textwidth}>{\raggedleft\arraybackslash}p{0.45\textwidth}}
+    \textmd{Profesor:} & \textmd{Student:} \\[0.3cm]
+    \textbf{\professorname} & \textbf{\authorname}
+  \end{tabular}
+  \vspace{1.5cm}
+  \par
+  {\normalfont \locationdate \par}
 \end{titlepage}
 
-% =====================================================================
-% SADRŽAJ I POPISI (rimske stranice)
-% =====================================================================
+% ---- FRONTMATTER (rimske stranice velikim slovima: I, II, III) ----
 \pagenumbering{Roman}
+\setcounter{page}{1}
 
 \tableofcontents
-\newpage
-\listoffigures
-\newpage
-\listoftables
-\newpage
+\clearpage
+{{LISTOFFIGURES}}
+{{LISTOFTABLES}}
 
-% =====================================================================
-% SADRŽAJ RADA (arapske stranice)
-% =====================================================================
+% ---- BODY (arapske stranice) ----
 \pagenumbering{arabic}
+\setcounter{page}{1}
 
-\section{UVOD}
-{{UVOD}}
+\input{chapters/00-uvod}
 
-{{SADRZAJ}}
+{{CHAPTER_INPUTS}}
 
-\section{ZAKLJUČAK}
-{{ZAKLJUCAK}}
+\input{chapters/zakljucak}
 
-% =====================================================================
-% LITERATURA
-% =====================================================================
-\newpage
-\begin{thebibliography}{99}
-\addcontentsline{toc}{section}{LITERATURA}
-{{LITERATURA}}
-\end{thebibliography}
-
-% =====================================================================
-% PRILOZI
-% =====================================================================
-\newpage
-\section*{PRILOZI}
-\addcontentsline{toc}{section}{PRILOZI}
-{{PRILOZI}}
+% ---- LITERATURA ----
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
 
 \end{document}
