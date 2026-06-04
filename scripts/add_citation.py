@@ -43,6 +43,11 @@ def fetch_from_doi(doi: str) -> dict:
             authors.append(f"{family}, {given}" if given else family)
     author_str = " and ".join(authors)
 
+    if not author_str:
+        print(f"  WARNING: CrossRef returned no authors for DOI {doi}.")
+        print(f"  Verify manually at: https://doi.org/{doi}")
+        author_str = f"AUTORI-NEDOSTAJU — verificirati na: https://doi.org/{doi}"
+
     # Extract year
     year = ""
     for date_field in ["published-print", "published-online", "issued"]:

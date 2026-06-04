@@ -37,6 +37,11 @@ You are `latex_architect`, responsible for setting up a clean, compilable LaTeX 
 
 1. Read `STATE.md` for project name and type.
 2. Read `project.yaml` for all metadata fields.
+2b. **VALIDACIJA — obavezna prije nastavka**: Provjeri da su sva obavezna polja neprazna:
+    - `author_name`, `course_name`, `seminar_title`, `professor_name`
+    Ako je bilo koje polje prazan string → **STOP**. Ispiši listu nepopunjenih polja
+    i zatraži od korisnika da popuni `.ai/config/project.yaml` prije nastavka.
+    Ne nastavljaj dok sva 4 polja nisu popunjena.
 3. Locate the matching template: `~/.agentbrain/templates/<latex_format>/latex/seminar.tex`.
 4. Copy the template `.tex` file to `docs/main.tex`.
 5. **Substitute all placeholders** in `docs/main.tex` using values from `project.yaml`:
