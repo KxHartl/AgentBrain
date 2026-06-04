@@ -1,0 +1,17 @@
+* text=auto eol=lf
+
+# Shell scripts must stay LF or they break under bash (CI runs on Linux).
+*.sh text eol=lf
+
+# PowerShell is happy with either; keep CRLF for native Windows editing.
+*.ps1 text eol=crlf
+
+# Binary assets — never normalize.
+*.pdf binary
+*.docx binary
+*.dotx binary
+*.pptx binary
+*.xlsx binary
+*.png binary
+*.jpg binary
+*.lance binary

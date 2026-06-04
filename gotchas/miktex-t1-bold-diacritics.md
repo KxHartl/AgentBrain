@@ -6,6 +6,11 @@ verified: "2026-06, FSB semestar_10/humanoidna-seminar"
 ---
 # mathptmx ne renderira bold za T1 dijakritike (ž, ć, š, đ)
 
+> **STATUS (povijesno / samo pdfLaTeX):** Kanonski engine je sada **Tectonic (XeTeX)** uz
+> `fontspec` + TeX Gyre Termes, koji ima PRAVI OpenType bold pa ovaj problem **ne postoji**.
+> Predlošci koriste `\usepackage{iftex}` i ovaj `newtxtext` fix vrijedi samo u `\ifPDFTeX`
+> grani. Ne reintroduciraj `inputenc`/`fontenc`/`mathptmx` u XeTeX putu.
+
 ## Kontekst
 
 MiKTeX + pdflatex + `\usepackage{mathptmx}` + `\usepackage[T1]{fontenc}`

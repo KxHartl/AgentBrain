@@ -2,6 +2,10 @@
 LiteRealm RAG — Query pipeline with source citations (LanceDB).
 Searches vector stores and returns relevant chunks with references.
 
+The query-time embedding model is chosen to MATCH the model that built each
+index (detected from the stored vector dimension), so a mismatch fails loudly
+with a fix hint instead of silently returning nothing.
+
 Usage:
     python ~/.agentbrain/scripts/rag/query.py "Sto je autonomni vilicar?"
     python ~/.agentbrain/scripts/rag/query.py "question" --scope local
@@ -15,54 +19,67 @@ import argparse
 from pathlib import Path
 
 
-def load_embed_fn():
-    """Load the same embedding model used during ingestion."""
+def embedder_for_dim(dim):
+    """Return an embed_fn whose output matches the stored vector dim, or raise.
+
+    768 -> Gemini cloud (requires GEMINI_API_KEY); 384 -> local MiniLM.
+    """
     from dotenv import load_dotenv
     load_dotenv()
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key:
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-
-            def embed_fn(text):
-                result = genai.embed_content(
-                    model="models/embedding-001",
-                    content=text,
-                    task_type="retrieval_query"
-                )
-                return result["embedding"]
-
-            return embed_fn
-        except Exception:
-            pass
-
-    try:
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+    if dim == 768:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "This index was built with Gemini embeddings (dim 768) but "
+                "GEMINI_API_KEY is not set. Set it in .env, or re-ingest with "
+                "local embeddings (unset GEMINI_API_KEY before running ingest.py)."
+            )
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
 
         def embed_fn(text):
-            return model.encode(text).tolist()
+            return genai.embed_content(
+                model="models/embedding-001",
+                content=text,
+                task_type="retrieval_query",
+            )["embedding"]
 
         return embed_fn
-    except ImportError:
-        print("No embedding provider. Set GEMINI_API_KEY or install sentence-transformers.")
-        sys.exit(1)
+
+    if dim == 384:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise RuntimeError(
+                "Index uses local embeddings (dim 384) but sentence-transformers "
+                "is not installed. Run: pip install sentence-transformers"
+            )
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+        return lambda text: model.encode(text).tolist()
+
+    raise RuntimeError(
+        f"Stored vector dimension {dim} has no known embedding model. "
+        "Re-ingest the sources with a supported embedder."
+    )
+
+
+def get_vector_dim(table):
+    """Read the vector dimension from a LanceDB table schema."""
+    try:
+        return table.schema.field("vector").type.list_size
+    except Exception:
+        row = table.search().limit(1).to_list()
+        return len(row[0]["vector"]) if row else None
 
 
 def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
-    """
-    Query LanceDB vector stores. Returns ranked list of relevant chunks.
-    """
+    """Query LanceDB vector stores. Returns a ranked list of relevant chunks."""
     try:
         import lancedb
     except ImportError:
         print("lancedb not installed. Run: pip install lancedb")
         sys.exit(1)
-
-    embed_fn = load_embed_fn()
-    query_vec = embed_fn(question)
 
     root = Path.cwd()
     results = []
@@ -82,13 +99,17 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
         print("No vector stores found. Run ingest.py first.")
         sys.exit(1)
 
+    embedders = {}  # dim -> embed_fn (cache; a query model loads once)
     for store_name, db_path, table_name, weight in stores:
         try:
             db = lancedb.connect(db_path)
             if table_name not in db.table_names():
                 continue
-
             table = db.open_table(table_name)
+            dim = get_vector_dim(table)
+            if dim not in embedders:
+                embedders[dim] = embedder_for_dim(dim)
+            query_vec = embedders[dim](question)
             search_results = table.search(query_vec).limit(k).to_list()
 
             for row in search_results:
@@ -101,6 +122,9 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
                     "weighted_score": (1 / (1 + row.get("_distance", 0))) * weight,
                     "db_scope": store_name,
                 })
+        except RuntimeError:
+            # Embedding-model mismatch is a hard error — surface it, do not hide it.
+            raise
         except Exception as e:
             print(f"  Warning: Could not query {store_name} store: {e}")
 

@@ -1,2 +1,16 @@
 __pycache__/
+*.pyc
 .venv/
+
+# Built RAG vector stores are runtime artefacts (auto-generated, large) — never commit.
+# Local project DBs live in <project>/.ai/rag/db/, never inside the brain.
+rag/db/
+rag/local_dbs/
+
+# Global source PDFs are data, not logic; keep them out of the brain repo.
+# Small PDFs needed by the test suite go under tests/fixtures/ instead.
+rag/sources/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db

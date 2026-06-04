@@ -1,8 +1,21 @@
 \documentclass[12pt,a4paper]{article}
-\usepackage{cmap}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
+% Dual-engine font/encoding (vidi seminar.tex / gotcha miktex-t1-bold-diacritics).
+% Tectonic (XeTeX) je kanonski: fontspec + TeX Gyre Termes ima pravi OpenType bold
+% pa hrvatski ž/ć/š/đ rade i u \textbf{}. NE mathptmx (gubi bold za T1 dijakritike).
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage{cmap}
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{newtxtext}
+\else
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes-regular.otf}[
+    BoldFont       = texgyretermes-bold.otf,
+    ItalicFont     = texgyretermes-italic.otf,
+    BoldItalicFont = texgyretermes-bolditalic.otf
+  ]
+\fi
 \usepackage[croatian]{babel}
 \usepackage{geometry}
 \usepackage{graphicx}
@@ -15,7 +28,7 @@
 \usepackage{tabularx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{mathptmx}       % Times New Roman font
+% Font je postavljen u iftex bloku gore (TeX Gyre Termes / newtxtext).
 \usepackage{chngcntr}       % Za numeriranje po poglavljima
 
 % Postavke margina (matching Word: left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm)
@@ -27,7 +40,7 @@
 % ---- STILOVI NASLOVA ----
 % Section: nova stranica + bold uppercase
 \titleformat{\section}
-  {\normalfont\large\bfseries\uppercase}{\thesection.}{0.5em}{}
+  {\normalfont\large\bfseries\MakeUppercase}{\thesection.}{0.5em}{}
 \titleformat{\subsection}
   {\normalfont\normalsize\bfseries}{\thesubsection.}{0.5em}{}
 \titleformat{\subsubsection}

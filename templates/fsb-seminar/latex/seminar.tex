@@ -3,15 +3,24 @@
 
 \documentclass[12pt,a4paper]{article}
 
-% --- Encoding & Language ---
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
+% --- Encoding, Font & Language (dual-engine) ---
+% Kanonski engine je Tectonic (XeTeX): fontspec + TeX Gyre Termes ima PRAVI
+% OpenType bold pa hrvatski ž/ć/š/đ rade i u \textbf{}. pdfLaTeX fallback koristi
+% newtxtext (vidi gotcha miktex-t1-bold-diacritics). NE newtxmath uz amssymb (\Bbbk konflikt).
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{newtxtext}
+\else
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes-regular.otf}[
+    BoldFont       = texgyretermes-bold.otf,
+    ItalicFont     = texgyretermes-italic.otf,
+    BoldItalicFont = texgyretermes-bolditalic.otf
+  ]
+\fi
 \usepackage[croatian]{babel}
-
-% --- Font: newtxtext (Times-compatible, puni T1 bold za hrvatska slova ž,ć,š,đ) ---
-% NAPOMENA: NE koristiti mathptmx — nema Type1 bold za T1 extended (EC bitmap fonts).
-%           NE koristiti newtxmath zajedno s amssymb — nastaje \Bbbk konflikt.
-\usepackage{newtxtext}
 
 % --- Layout ---
 \usepackage[top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm]{geometry}
