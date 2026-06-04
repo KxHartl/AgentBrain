@@ -40,7 +40,7 @@
 % ---- STILOVI NASLOVA ----
 % Koherentno s thesis/seminar: section = bold uppercase, subsection = bold, subsubsection = bold italic
 \titleformat{\section}
-  {\normalfont\normalsize\bfseries\uppercase}{\thesection.}{0.5em}{}
+  {\normalfont\normalsize\bfseries\MakeUppercase}{\thesection.}{0.5em}{}
 \titleformat{\subsection}
   {\normalfont\normalsize\bfseries}{\thesubsection.}{0.5em}{}
 \titleformat{\subsubsection}
@@ -88,7 +88,7 @@
 % ---- NASLOV RADA ----
 \title{%
     \vspace{-1.5cm}%
-    {\fontsize{16pt}{19pt}\selectfont\bfseries\uppercase{{{NASLOV_RADA}}}}%
+    {\fontsize{16pt}{19pt}\selectfont\bfseries\MakeUppercase{{{NASLOV_RADA}}}}%
     \vspace{0.3cm}%
 }
 \author{%

@@ -1,8 +1,13 @@
 \documentclass{beamer}
-\usepackage{cmap}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
+% Dual-engine: pod XeTeX-om (Tectonic, kanonski) beamer sam učita fontspec i
+% Latin Modern pokriva hrvatske dijakritike; pdfLaTeX fallback koristi T1+lmodern.
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage{cmap}
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+\fi
 \usepackage[croatian]{babel}
 \usepackage{amsmath, amssymb}
 

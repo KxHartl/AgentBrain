@@ -42,34 +42,41 @@ You are `latex_architect`, responsible for setting up a clean, compilable LaTeX 
     Ako je bilo koje polje prazan string → **STOP**. Ispiši listu nepopunjenih polja
     i zatraži od korisnika da popuni `.ai/config/project.yaml` prije nastavka.
     Ne nastavljaj dok sva 4 polja nisu popunjena.
-3. Locate the matching template: `~/.agentbrain/templates/<latex_format>/latex/seminar.tex`.
-4. Copy the template `.tex` file to `docs/main.tex`.
-5. **Substitute all placeholders** in `docs/main.tex` using values from `project.yaml`:
+3. **Renderiraj predložak determinističkom skriptom** (ne kopiraj/supstituiraj ručno). Skripta
+   sama riješi ispravan master za format, validira obavezna polja, supstituira SVE metapodatkovne
+   placeholdere i scaffolda strukturu:
+
+   ```bash
+   python ~/.agentbrain/scripts/render_template.py --project-root . --scaffold
+   ```
+
+   Što skripta radi:
+   - Bira master iz `~/.agentbrain/templates/<latex_format>/latex/*.tex`
+     (seminar.tex / thesis.tex / paper.tex / presentation.tex — bez hardkodiranog imena),
+     uz fallback na `fsb-seminar` ako `latex_format` nije prepoznat.
+   - **Exit kod 2 + STOP** ako su `author_name`, `course_name`, `seminar_title` ili
+     `professor_name` prazni — ispiši koja polja nedostaju i ne nastavljaj dok korisnik ne popuni
+     `.ai/config/project.yaml`. (Ovo je strojna provjera koraka 2b.)
+   - Piše `docs/main.tex`, kreira `docs/{chapters,figures,tables,code}/`, prazan `references.bib`
+     i stub poglavlja za svaki `\input{}` koji master referencira.
+   - Odbija pregaziti postojeći `docs/main.tex` bez `--force` (poštuje pravilo "NEVER overwrite existing main.tex").
+
+   Metapodatkovne supstitucije koje skripta primjenjuje (referenca, ne radi se ručno):
 
    | Placeholder              | project.yaml field          | Fallback                                          |
    |--------------------------|------------------------------|---------------------------------------------------|
    | `{{KOLEGIJ}}`            | `course_name`               | `[KOLEGIJ NIJE POSTAVLJEN]`                       |
-   | `{{NASLOV_SEMINARA}}`    | `seminar_title`             | project name from STATE.md                        |
+   | `{{NASLOV_SEMINARA}}`    | `seminar_title`             | project `name`                                    |
    | `{{NASLOV_SEMINARA_KRATKI}}` | `seminar_title_short`   | first 50 chars of `seminar_title`                 |
-   | `{{PROFESOR}}`           | `professor_title` + `professor_name` | `\colorbox{yellow}{\textbf{PROFESOR NIJE POSTAVLJEN}}` |
+   | `{{PROFESOR}}` / `{{MENTORI}}` | `professor_title` + `professor_name` | `\colorbox{yellow}{\textbf{PROFESOR NIJE POSTAVLJEN}}` |
    | `{{IME_I_PREZIME}}`      | `author_name`               | `[IME NIJE POSTAVLJENO]`                          |
    | `{{GODINA}}`             | current year (auto)         | —                                                 |
    | `{{LISTOFFIGURES}}`      | `include_lof: true`         | empty string (skip)                               |
    | `{{LISTOFTABLES}}`       | `include_lot: true`         | empty string (skip)                               |
    | `{{CHAPTER_INPUTS}}`     | —                           | empty (writer dodaje poglavlja)                   |
 
-   Za `{{PROFESSOR}}`: kombinacija je `professor_title professor_name` (npr. `Prof. dr. sc. Ana Marić`).
-   Ako je `professor_name` prazan string ili nije postavljen, upiši upozorenje vidljivo u PDF-u:
-   `\colorbox{yellow}{\textbf{PROFESOR NIJE POSTAVLJEN}}`
-
-   Za `{{LISTOFFIGURES}}`: ako `include_lof: true`, supstituiraj s `\listoffigures\clearpage`, inače s praznim stringom.
-   Za `{{LISTOFTABLES}}`: ako `include_lot: true`, supstituiraj s `\listoftables\clearpage`, inače s praznim stringom.
-
-6. Create `docs/references.bib` if it doesn't exist (empty, with a commented example entry).
-7. Ensure directories exist: `docs/chapters/`, `docs/figures/`, `docs/tables/`, `docs/code/`.
-8. Create stub chapter files:
-   - `docs/chapters/00-uvod.tex` — s komentarom `% Uvod — writer popunjava`
-   - `docs/chapters/zakljucak.tex` — s komentarom `% Zaključak — writer popunjava`
+   Sadržajni placeholderi (npr. `{{UVOD}}`, `{{LITERATURA}}`, `{{SAZETAK_TEKST}}`) ostaju —
+   njih popunjava `writer`, ne `latex_architect`.
 9. Compile to verify the empty template builds:
    `.\.ai\scripts\helpers\build-docs.ps1` (Windows) or `./.ai/scripts/helpers/build-docs.sh` (Linux/macOS).
 10. If compilation fails, diagnose and fix before proceeding (pozovi `latex_surgeon` ako je potrebno).
