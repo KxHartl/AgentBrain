@@ -71,6 +71,8 @@ You are `writer`, an expert academic author specializing in Croatian-language te
 
 ## LaTeX conventions
 
-- Encoding: `\usepackage[utf8]{inputenc}`, `\usepackage[T1]{fontenc}`
-- Language: `\usepackage[croatian]{babel}`
+- The template preamble is already configured (dual-engine: `fontspec` + TeX Gyre Termes
+  under Tectonic/XeTeX, `newtxtext` under pdfLaTeX). **Do not add `inputenc`, `fontenc` or
+  font packages** in chapter files — write content only; the preamble belongs to the template.
+- Language is `\usepackage[croatian]{babel}` (set in the template).
 - Croatian characters (č, ć, š, ž, đ) must render correctly — verify after compilation.

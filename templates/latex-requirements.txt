@@ -1,41 +1,41 @@
-# LaTeX Package Requirements
-# All templates (thesis, seminar, paper) require these packages.
-# Run `scripts/check-latex-packages.ps1` to verify and auto-install missing packages.
+# LaTeX package reference (informational).
+#
+# Canonical engine is Tectonic (XeTeX): it AUTO-DOWNLOADS every package below on
+# first compile, so there is nothing to install manually. This list just documents
+# what the templates use. Under the pdfLaTeX fallback (\ifPDFTeX branch) you need a
+# TeX distribution (TeX Live / MiKTeX) that provides these.
+
+# --- Engine & fonts (dual-engine) ---
+iftex             # engine detection (\ifPDFTeX guard)
+fontspec          # XeTeX/LuaTeX font loading (Tectonic path)
+tex-gyre          # TeX Gyre Termes OTF — Times-compatible, REAL bold for ž/ć/š/đ
+newtxtext         # pdfLaTeX fallback font (only inside \ifPDFTeX)
 
 # --- Core ---
-inputenc
-fontenc
-babel
-babel-croatian
+babel             # croatian language + hyphenation (babel-croatian)
 geometry
 graphicx
-
-# --- Typography ---
-tgtermes          # Times New Roman font (TeX Gyre Termes)
-setspace          # Line spacing (1.5 for thesis/seminar, single for paper)
-titlesec          # Section heading formatting
-caption           # Figure/table caption formatting
-
-# --- Headers/Footers ---
-fancyhdr
+setspace          # 1.5 spacing (thesis/seminar), single (paper)
+titlesec          # section heading formatting
+caption           # figure/table caption formatting
+fancyhdr          # headers / footers
 
 # --- Tables ---
+booktabs
 longtable
 array
 tabularx
-booktabs
 
 # --- Math ---
 amsmath
 amssymb
 
-# --- Counters ---
-chngcntr          # counterwithin for chapter-based numbering
+# --- Counters / misc ---
+chngcntr          # chapter-based figure/table/equation numbering
+xcolor            # visible warnings for unfilled placeholders
+hyperref          # clickable links
+abstract          # fsb-paper abstract formatting
 
-# --- Paper-specific ---
-abstract          # Abstract formatting (fsb-paper)
-hyperref          # Clickable links (fsb-paper)
-
-# --- Demo/Graphs (optional, for demo compilation) ---
+# --- Demo/graphs (optional) ---
 tikz
 pgfplots
