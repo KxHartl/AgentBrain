@@ -18,7 +18,7 @@ if (-not $Formats -or $Formats.Count -eq 0) {
 }
 
 if (-not (Get-Command tectonic -ErrorAction SilentlyContinue)) {
-    Write-Host "ERROR: tectonic not found — required for the template compile test." -ForegroundColor Red
+    Write-Host "ERROR: tectonic not found - required for the template compile test." -ForegroundColor Red
     exit 1
 }
 
