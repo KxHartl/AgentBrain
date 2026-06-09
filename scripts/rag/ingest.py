@@ -141,22 +141,43 @@ def parse_with_docling(sources_dir, enable_ocr=False):
 
     print(f"Found {len(pdf_files)} PDF(s) in {sources_dir}")
 
-    # Configure converter
-    if enable_ocr:
-        from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions
-        from docling.datamodel.base_models import InputFormat
-        from docling.document_converter import PdfFormatOption
+    # Configure the converter with the best available accelerator so BOTH layout
+    # parsing and OCR run on the GPU when present. Docling derives RapidOCR's
+    # use_cuda from accelerator_options.device, so choosing CUDA/MPS here also
+    # lights up OCR; it falls back to CPU automatically.
+    from docling.datamodel.base_models import InputFormat
+    from docling.document_converter import PdfFormatOption
+    from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
+    from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 
-        ocr_options = EasyOcrOptions(force_full_page_ocr=True)
-        pipeline_options = PdfPipelineOptions(ocr_options=ocr_options)
-        converter = DocumentConverter(
-            format_options={
-                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
-            }
+    device = AcceleratorDevice.CPU
+    try:
+        import torch
+        if torch.cuda.is_available():
+            device = AcceleratorDevice.CUDA
+        elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            device = AcceleratorDevice.MPS
+    except Exception:
+        pass
+
+    pipeline_options = PdfPipelineOptions()
+    pipeline_options.accelerator_options = AcceleratorOptions(device=device)
+    if enable_ocr:
+        # RapidOCR is Docling's bundled engine and is installed here; EasyOCR is
+        # not. Use the torch backend (RapidOcrOptions defaults to onnxruntime,
+        # which is not installed) so OCR runs on the torch `device` (GPU/CPU).
+        pipeline_options.do_ocr = True
+        pipeline_options.ocr_options = RapidOcrOptions(
+            backend="torch", force_full_page_ocr=True
         )
-        print("  OCR enabled (full page).")
+        print(f"  OCR enabled (full page, RapidOCR/torch) on {device.value}.")
     else:
-        converter = DocumentConverter()
+        print(f"  Docling parsing on {device.value}.")
+    converter = DocumentConverter(
+        format_options={
+            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+        }
+    )
 
     # Configure chunker
     chunker = HybridChunker(max_tokens=512, merge_peers=True)
