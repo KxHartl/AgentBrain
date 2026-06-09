@@ -1,134 +1,132 @@
 # AgentBrain
 
-The global toolkit for **LiteRealm** projects — templates, agent definitions, RAG scripts, and skills. Shared across all LiteRealm projects on this machine.
+> The shared **brain** behind every [LiteRealm](https://github.com/KxHartl/LiteRealm) project —
+> LaTeX templates, AI agent definitions, RAG scripts and hard-won gotchas, installed once per machine.
 
-Installed at `~/.agentbrain` by the LiteRealm bootstrap script.
+[![LiteRealm template](https://img.shields.io/badge/works%20with-LiteRealm-6f42c1)](https://github.com/KxHartl/LiteRealm)
+[![RAG · Docling + LanceDB](https://img.shields.io/badge/RAG-Docling%20%2B%20LanceDB-008080)](https://docling-project.github.io/docling/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB)](https://www.python.org/)
+
+AgentBrain lives at `~/.agentbrain`. You never clone it by hand — the first LiteRealm project
+you bootstrap clones it for you. One brain serves all your projects; each project stays tiny.
+
+```
+   ┌─────────────────────────┐         ┌──────────────────────────────┐
+   │  LiteRealm  (a project)  │         │  AgentBrain  (this — shared)  │
+   │  · your text, data, PDFs │ ◀────▶  │  · templates · agents         │
+   │  · config + state        │  uses   │  · RAG scripts · gotchas      │
+   └─────────────────────────┘         └──────────────────────────────┘
+```
 
 ---
 
-## Directory Structure
+## 📂 Layout
 
 ```
 ~/.agentbrain/
-├── agents/          ← specialized agent definitions (role, triggers, permissions)
-├── templates/       ← LaTeX project templates per document type
+├── agents/          ← agent definitions (role · triggers · writes_to · never_touches)
+├── templates/       ← LaTeX templates, one folder per document type
 ├── scripts/
-│   ├── rag/
-│   │   ├── ingest.py       ← index PDFs into LanceDB
-│   │   └── query.py        ← search the vector store
-│   ├── add_citation.py     ← fetch BibTeX from DOI
-│   ├── setup_env.ps1       ← install Python dependencies (Windows)
-│   └── setup_env.sh        ← install Python dependencies (Linux/macOS)
-├── skills/          ← reusable AI workflows (diagnose, TDD, git workflow...)
-├── gotchas/         ← documented failure modes and warnings for agents
+│   ├── rag/ingest.py   ← index PDFs into LanceDB
+│   ├── rag/query.py    ← search the vector store
+│   ├── add_citation.py ← fetch BibTeX from a DOI
+│   └── setup_env.{ps1,sh} ← (re)install the RAG Python env
+├── skills/          ← reusable AI workflows
+├── gotchas/         ← documented failure modes for agents
 ├── prompts/         ← reasoning templates (CoT, ReAct, ToT)
-├── rag/
-│   ├── db/          ← global LanceDB vector store (AgentBrain sources)
-│   └── sources/     ← global PDF sources (cross-project reference material)
-├── manifest.yaml    ← version contract with LiteRealm projects
-└── _TEMPLATE.md     ← format template for new skills/gotchas
+├── rag/{db,sources} ← global vector store + cross-project reference PDFs
+├── .venv/           ← the one Python env that powers RAG everywhere
+├── manifest.yaml    ← version contract with LiteRealm
+└── _TEMPLATE.md     ← format for new skills / gotchas
 ```
 
 ---
 
-## Setup
+## 🤖 Agents
 
-The Python environment is set up automatically by LiteRealm's `bootstrap.ps1` / `bootstrap.sh` when `-Rag local` or `global` is requested. To set it up manually:
-
-**Windows:**
-```powershell
-~/.agentbrain/scripts/setup_env.ps1
-```
-
-**Linux / macOS:**
-```bash
-~/.agentbrain/scripts/setup_env.sh
-```
-
-Installs: `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `python-dotenv`, `pypdf`
-
-Prefers `uv` for speed; falls back to `pip`.
-
----
-
-## Agents
-
-Six specialized agents are defined in `agents/`. Each has a YAML header declaring its **role**, **triggers** (phrases that activate it), **writes_to** (directories it may write to), and **never_touches** (hard access restrictions).
+Six specialists in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
+**writes_to** (allowed directories) and **never_touches** (hard limits).
 
 | Agent | Role | Key restriction |
 |---|---|---|
-| `latex_architect` | Set up `docs/` LaTeX structure | Never overwrites existing `main.tex` |
-| `data_fetcher` | Find and download literature | Never writes to `docs/` or `src/` |
-| `writer` | Write academic LaTeX content | Never overwrites entire `.tex` files |
-| `qa_reviewer` | Review and critique content | **Read-only** — only writes `docs/REVIEW.md` |
-| `latex_surgeon` | Fix LaTeX compilation errors | Never rewrites content, only compilation fixes |
-| `rag_indexer` | Maintain RAG vector database | Never touches `data/sources/` (read-only for it) |
+| `latex_architect` | Set up the `docs/` LaTeX project | Never overwrites an existing `main.tex` |
+| `data_fetcher` | Find & download literature | Never writes to `docs/` or `src/` |
+| `writer` | Write academic LaTeX content | Never overwrites whole `.tex` files |
+| `qa_reviewer` | Review & critique | **Read-only** — only writes `docs/REVIEW.md` |
+| `latex_surgeon` | Fix compile errors | Touches compilation only, never content |
+| `rag_indexer` | Maintain the vector database | `data/sources/` is read-only for it |
 
-**Pipeline order**: `latex_architect` → `data_fetcher` → `writer` → `qa_reviewer` → `latex_surgeon` → `rag_indexer`
+**Pipeline:** `latex_architect → data_fetcher → writer → qa_reviewer → latex_surgeon → rag_indexer`
 
 ---
 
-## Templates
+## 📐 Templates
 
-Available in `templates/`:
-
-| Template | Directory | Format |
+| Template | Folder | Format |
 |---|---|---|
-| FSB Seminar | `fsb-seminar/` | 12pt, A4, Times New Roman |
-| FSB Thesis | `fsb-thesis/` | 12pt, A4, with TOC/lists |
-| FSB Paper | `fsb-paper/` | 10pt, two-column |
+| FSB Seminar | `fsb-seminar/` | 12 pt, A4, Times |
+| FSB Thesis | `fsb-thesis/` | 12 pt, A4, with TOC/lists |
+| FSB Paper | `fsb-paper/` | 10 pt, two-column |
 | FSB Presentation | `fsb-presentation/` | Beamer slides |
-| FSB Video | `fsb-video/` | Script/storyboard format |
+| FSB Video | `fsb-video/` | Script / storyboard |
 
-Each template contains:
-- `latex/` — `.tex` source files
-- `demo.pdf` — compiled example
-- `instructions.md` — AI agent instructions for this format
-- `structure.md` — document skeleton
-
-See `templates/README.md` for full details.
+Each holds `latex/` (source), `demo.pdf` (compiled example), `instructions.md` (agent guidance)
+and `structure.md` (document skeleton). See `templates/README.md`.
 
 ---
 
-## RAG Scripts
+## 📚 RAG — always on
+
+RAG isn't optional and isn't per-project: the scripts and their Python deps live **once** here in
+`~/.agentbrain/.venv`, and every LiteRealm project uses them directly.
 
 ```bash
-# Index PDFs from data/sources/ into the local project database
-python ~/.agentbrain/scripts/rag/ingest.py
+# Index a project's PDFs (from its data/sources/) into the project's vector store
+python ~/.agentbrain/scripts/rag/ingest.py            # add --ocr for scanned PDFs
+python ~/.agentbrain/scripts/rag/ingest.py --scope global   # index into the global store
 
-# Index with OCR (for scanned PDFs)
-python ~/.agentbrain/scripts/rag/ingest.py --ocr
+# Query
+python ~/.agentbrain/scripts/rag/query.py "your question" --scope both
 
-# Index into the global AgentBrain database
-python ~/.agentbrain/scripts/rag/ingest.py --scope global
-
-# Query the vector store
-python ~/.agentbrain/scripts/rag/query.py "Your question" --scope both
-
-# Auto-generate BibTeX from DOI
+# BibTeX from a DOI
 python ~/.agentbrain/scripts/add_citation.py --doi "10.1109/TRO.2024.1234567"
 ```
 
-**Embeddings**: uses Gemini cloud (`GEMINI_API_KEY` in `.env`) if available, otherwise falls back to local `sentence-transformers` (`all-MiniLM-L6-v2`).
+**Embeddings** use Gemini cloud when `GEMINI_API_KEY` is present in the project's `.env`,
+otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`). No configuration switch — it adapts.
+
+### Setting up the env
+
+Bootstrap creates `~/.agentbrain/.venv` automatically the first time. To rebuild it by hand:
+
+```powershell
+~/.agentbrain/scripts/setup_env.ps1     # Windows
+```
+```bash
+~/.agentbrain/scripts/setup_env.sh      # Linux / macOS
+```
+
+Installs `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `python-dotenv`,
+`pypdf`. Prefers `uv`; falls back to `pip`.
 
 ---
 
-## Version Contract
+## 🔗 Version contract
 
-`manifest.yaml` declares the AgentBrain version. LiteRealm's bootstrap stamps the version into the project's `project.yaml` (`agentbrain_version` field). This creates a traceable link between each project and the AgentBrain version it was initialized with.
-
-Current version: **2.0.0** — requires LiteRealm ≥ 2.0.0.
+`manifest.yaml` declares the AgentBrain version (currently **2.1.0**, requires LiteRealm ≥ 2.0.0).
+Bootstrap stamps that version + commit into each project's `project.yaml`
+(`agentbrain_version`), so every project records exactly which brain built it.
 
 ---
 
-## Adding New Knowledge
+## ➕ Adding knowledge
 
-All knowledge files (`skills/`, `gotchas/`, `prompts/`) must follow the format in `_TEMPLATE.md`:
+New `skills/`, `gotchas/` and `prompts/` follow `_TEMPLATE.md`:
 
 ```markdown
 ---
 domain: [python | rag | latex | workflow | ...]
-type: [skill | gotcha | prompt]
+type:   [skill | gotcha | prompt]
 author: [your-id or AI]
 ---
 # Title
@@ -136,3 +134,5 @@ author: [your-id or AI]
 ## Solution
 ## Gotchas / Warnings
 ```
+
+Agents are encouraged to update this brain themselves when they discover a new gotcha or workflow.
