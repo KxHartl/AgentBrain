@@ -15,6 +15,24 @@ import argparse
 from pathlib import Path
 
 
+def ensure_brain_venv():
+    """Re-exec under the AgentBrain venv if the current interpreter lacks RAG deps.
+
+    Lets `python ~/.agentbrain/scripts/rag/ingest.py` work even when invoked with a
+    plain `python` that has no docling/lancedb — the heavy deps live in the brain venv.
+    """
+    import importlib.util
+    if importlib.util.find_spec("lancedb") is not None:
+        return
+    brain = Path(os.environ.get("AGENTBRAIN_PATH") or (Path.home() / ".agentbrain"))
+    for cand in (brain / ".venv" / "bin" / "python", brain / ".venv" / "Scripts" / "python.exe"):
+        if cand.exists() and Path(sys.executable).resolve() != cand.resolve():
+            # subprocess (not os.execv): execv is async on Windows and would let the
+            # caller return before this finishes. run() waits and propagates the code.
+            import subprocess
+            sys.exit(subprocess.run([str(cand), *sys.argv]).returncode)
+
+
 def get_paths(scope):
     """Return (sources_dir, store_dir) based on scope."""
     if scope == "global":
@@ -253,6 +271,8 @@ def ingest(scope="local", enable_ocr=False, fast=False):
 
     table_name = "global_docs" if scope == "global" else "project_docs"
 
+    # NOTE: table_names() emits a DeprecationWarning in lancedb 0.33 but still works
+    # and returns a plain list; list_tables() returns a paginated response object.
     if table_name in db.table_names():
         db.drop_table(table_name)
 
@@ -273,6 +293,7 @@ def ingest(scope="local", enable_ocr=False, fast=False):
 
 
 if __name__ == "__main__":
+    ensure_brain_venv()
     parser = argparse.ArgumentParser(description="Ingest PDFs into LanceDB (Docling parser).")
     parser.add_argument("--scope", choices=["local", "global"], default="local",
                         help="Choose local project or global AgentBrain database.")

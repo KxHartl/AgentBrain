@@ -19,6 +19,24 @@ import argparse
 from pathlib import Path
 
 
+def ensure_brain_venv():
+    """Re-exec under the AgentBrain venv if the current interpreter lacks RAG deps.
+
+    Lets `python ~/.agentbrain/scripts/rag/query.py` work even when invoked with a
+    plain `python` that has no lancedb — the heavy deps live in the brain venv.
+    """
+    import importlib.util
+    if importlib.util.find_spec("lancedb") is not None:
+        return
+    brain = Path(os.environ.get("AGENTBRAIN_PATH") or (Path.home() / ".agentbrain"))
+    for cand in (brain / ".venv" / "bin" / "python", brain / ".venv" / "Scripts" / "python.exe"):
+        if cand.exists() and Path(sys.executable).resolve() != cand.resolve():
+            # subprocess (not os.execv): execv is async on Windows and would let the
+            # caller return before this finishes. run() waits and propagates the code.
+            import subprocess
+            sys.exit(subprocess.run([str(cand), *sys.argv]).returncode)
+
+
 def embedder_for_dim(dim):
     """Return an embed_fn whose output matches the stored vector dim, or raise.
 
@@ -103,7 +121,7 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
     for store_name, db_path, table_name, weight in stores:
         try:
             db = lancedb.connect(db_path)
-            if table_name not in db.table_names():
+            if table_name not in db.table_names():  # plain list; list_tables() is paginated
                 continue
             table = db.open_table(table_name)
             dim = get_vector_dim(table)
@@ -133,6 +151,7 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
 
 
 def main():
+    ensure_brain_venv()
     parser = argparse.ArgumentParser(description="Query LanceDB RAG databases.")
     parser.add_argument("question", nargs="+", help="Question to ask the database")
     parser.add_argument("--scope", choices=["local", "global", "both"], default="both",
