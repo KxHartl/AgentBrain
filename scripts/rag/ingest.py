@@ -111,7 +111,9 @@ def load_embeddings():
                 texts = [texts]
             return model.encode(texts).tolist()
 
-        print("Using local HuggingFace embeddings (all-MiniLM-L6-v2).")
+        # model.device shows where it runs (cuda:0 / mps / cpu) — sentence-transformers
+        # auto-selects the GPU when torch has CUDA/MPS, so this confirms acceleration.
+        print(f"Using local HuggingFace embeddings (all-MiniLM-L6-v2) on {model.device}.")
         return embed_fn, 384, "local:all-MiniLM-L6-v2"
     except ImportError:
         print("No embedding provider available.")
