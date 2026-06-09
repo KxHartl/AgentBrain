@@ -14,6 +14,11 @@ import sys
 import argparse
 from pathlib import Path
 
+# Resolve store paths through the shared helper (same dir as this script) so
+# ingest and query agree on the DB location, incl. the FAT/exFAT relocation.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from rag_paths import resolve_store_dir, enable_utf8_io
+
 
 def ensure_brain_venv():
     """Run under the AgentBrain venv; build it on first use if it is missing.
@@ -57,13 +62,20 @@ def ensure_brain_venv():
 
 
 def get_paths(scope):
-    """Return (sources_dir, store_dir) based on scope."""
+    """Return (sources_dir, store_dir) based on scope.
+
+    store_dir is routed through resolve_store_dir so it always lands on a
+    filesystem that can host LanceDB (FAT/exFAT paths get relocated, with a notice).
+    """
     if scope == "global":
         root = Path.home() / ".agentbrain"
-        return root / "rag" / "sources", root / "rag" / "db"
+        sources = root / "rag" / "sources"
+        store = resolve_store_dir(root / "rag" / "db", project_root=root, announce=True)
     else:
         root = Path.cwd()
-        return root / "data" / "sources", root / ".ai" / "rag" / "db"
+        sources = root / "data" / "sources"
+        store = resolve_store_dir(root / ".ai" / "rag" / "db", project_root=root, announce=True)
+    return sources, store
 
 
 def load_embeddings():
@@ -316,6 +328,7 @@ def ingest(scope="local", enable_ocr=False, fast=False):
 
 
 if __name__ == "__main__":
+    enable_utf8_io()
     ensure_brain_venv()
     parser = argparse.ArgumentParser(description="Ingest PDFs into LanceDB (Docling parser).")
     parser.add_argument("--scope", choices=["local", "global"], default="local",

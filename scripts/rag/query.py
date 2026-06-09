@@ -18,6 +18,11 @@ import sys
 import argparse
 from pathlib import Path
 
+# Resolve store paths through the shared helper (same dir as this script) so
+# query reads from the exact location ingest wrote to, incl. FAT/exFAT relocation.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from rag_paths import resolve_store_dir, enable_utf8_io
+
 
 def ensure_brain_venv():
     """Run under the AgentBrain venv; build it on first use if it is missing.
@@ -127,12 +132,13 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
 
     stores = []
     if scope in ("local", "both"):
-        local_db_path = root / ".ai" / "rag" / "db"
+        local_db_path = resolve_store_dir(root / ".ai" / "rag" / "db", project_root=root)
         if local_db_path.exists():
             stores.append(("LOCAL", str(local_db_path), "project_docs", local_weight))
 
     if scope in ("global", "both"):
-        global_db_path = Path.home() / ".agentbrain" / "rag" / "db"
+        brain = Path.home() / ".agentbrain"
+        global_db_path = resolve_store_dir(brain / "rag" / "db", project_root=brain)
         if global_db_path.exists():
             stores.append(("GLOBAL", str(global_db_path), "global_docs", global_weight))
 
@@ -174,6 +180,7 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
 
 
 def main():
+    enable_utf8_io()
     ensure_brain_venv()
     parser = argparse.ArgumentParser(description="Query LanceDB RAG databases.")
     parser.add_argument("question", nargs="+", help="Question to ask the database")
