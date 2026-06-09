@@ -16,6 +16,7 @@ Usage:
 import os
 import re
 import sys
+import json
 import argparse
 from pathlib import Path
 
@@ -144,8 +145,12 @@ def get_vector_dim(table):
         return len(row[0]["vector"]) if row else None
 
 
-def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
-    """Query LanceDB vector stores. Returns a ranked list of relevant chunks."""
+def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3, embedders=None):
+    """Query LanceDB vector stores. Returns a ranked list of relevant chunks.
+
+    `embedders` is an optional dim->embed_fn cache. Pass a persistent dict (as the warm
+    server does) to load each query model only once across many calls.
+    """
     try:
         import lancedb
     except ImportError:
@@ -174,7 +179,8 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
         print("No vector stores found. Run ingest.py first.")
         sys.exit(1)
 
-    embedders = {}  # dim -> embed_fn (cache; a query model loads once)
+    if embedders is None:
+        embedders = {}  # dim -> embed_fn (cache; a query model loads once)
     for store_name, db_path, table_name, weight in stores:
         try:
             db = lancedb.connect(db_path)
@@ -208,21 +214,10 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
     return results
 
 
-def main():
-    enable_utf8_io()
-    ensure_brain_venv()
-    parser = argparse.ArgumentParser(description="Query LanceDB RAG databases.")
-    parser.add_argument("question", nargs="+", help="Question to ask the database")
-    parser.add_argument("--scope", choices=["local", "global", "both"], default="both",
-                        help="Which database to query")
-    parser.add_argument("-k", type=int, default=5, help="Number of results per store")
-    args = parser.parse_args()
-
-    question = " ".join(args.question)
-    print(f"\nQuery: {question} (Scope: {args.scope})\n")
+def print_results(question, scope, results):
+    """Render query results (shared by the standalone and warm-server paths)."""
+    print(f"\nQuery: {question} (Scope: {scope})\n")
     print("=" * 60)
-
-    results = query(question, k=args.k, scope=args.scope)
 
     if not results:
         print("No relevant results found.")
@@ -250,6 +245,121 @@ def main():
     if any(not r.get("cite_key") for r in results):
         print("\n  (Bez \\cite ključa = nema unosa u docs/references.bib s 'file' poljem "
               "za taj PDF. data_fetcher treba dodati citat s --file.)")
+
+
+# --- Warm-server client (keeps queries instant by reusing a loaded model) ---------
+
+def _server_info():
+    """Read this project's warm-server descriptor, or None."""
+    try:
+        from rag_paths import serve_state_path
+        sp = serve_state_path()
+        if not sp.exists():
+            return None
+        return json.loads(sp.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _server_call(info, path, payload=None, timeout=3):
+    import urllib.request
+    url = f"http://{info['host']}:{info['port']}{path}"
+    headers = {"X-RAG-Token": info.get("token", "")}
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers,
+                                 method="POST" if data is not None else "GET")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _query_via_server(question, k, scope, info=None):
+    """Return results from the warm server, or None if it isn't reachable."""
+    info = info or _server_info()
+    if not info:
+        return None
+    try:
+        if not _server_call(info, "/health", timeout=2).get("ok"):
+            return None
+        resp = _server_call(info, "/query",
+                            {"question": question, "k": k, "scope": scope}, timeout=60)
+        return resp.get("results", [])
+    except Exception:
+        return None
+
+
+def _brain_venv_python():
+    brain = Path(os.environ.get("AGENTBRAIN_PATH") or (Path.home() / ".agentbrain"))
+    for c in (brain / ".venv" / "Scripts" / "python.exe", brain / ".venv" / "bin" / "python"):
+        if c.exists():
+            return c
+    return None
+
+
+def _spawn_server(scope):
+    """Launch the warm server detached (survives this process). Returns True if launched."""
+    import subprocess
+    vpy = _brain_venv_python()
+    serve_py = Path(__file__).resolve().parent / "serve.py"
+    if not vpy or not serve_py.exists():
+        return False
+    cmd = [str(vpy), str(serve_py), "--scope", scope]
+    kwargs = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL, close_fds=True, cwd=str(Path.cwd()))
+    try:
+        if os.name == "nt":
+            kwargs["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED|NEW_GROUP|NO_WINDOW
+        else:
+            kwargs["start_new_session"] = True
+        subprocess.Popen(cmd, **kwargs)
+        return True
+    except Exception:
+        return False
+
+
+def _wait_for_server(question, k, scope, timeout=45):
+    import time
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        results = _query_via_server(question, k, scope)
+        if results is not None:
+            return results
+        time.sleep(0.7)
+    return None
+
+
+def main():
+    enable_utf8_io()
+    parser = argparse.ArgumentParser(description="Query LanceDB RAG databases.")
+    parser.add_argument("question", nargs="+", help="Question to ask the database")
+    parser.add_argument("--scope", choices=["local", "global", "both"], default="both",
+                        help="Which database to query")
+    parser.add_argument("-k", type=int, default=5, help="Number of results per store")
+    parser.add_argument("--no-server", action="store_true",
+                        help="Don't use/start the warm server; load models in-process.")
+    args = parser.parse_args()
+    question = " ".join(args.question)
+
+    # Fast path: a warm server already has the model loaded -> instant, and we never
+    # import torch/lancedb here. If none is running, start one in the background (so
+    # every later query is instant) and use it for this query too.
+    if not args.no_server:
+        results = _query_via_server(question, args.k, args.scope)
+        if results is not None:
+            print_results(question, args.scope, results)
+            return
+        if os.environ.get("RAG_NO_AUTOSERVE") != "1" and _spawn_server(args.scope):
+            results = _wait_for_server(question, args.k, args.scope)
+            if results is not None:
+                print_results(question, args.scope, results)
+                return
+
+    # Fallback: load models in this process (also used by --no-server).
+    ensure_brain_venv()
+    results = query(question, k=args.k, scope=args.scope)
+    print_results(question, args.scope, results)
 
 
 if __name__ == "__main__":

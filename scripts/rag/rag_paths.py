@@ -71,18 +71,28 @@ def _fs_can_host_lance(path):
     return name.upper() not in _UNSUPPORTED_FS
 
 
-def _relocated_db_dir(project_root):
-    """Deterministic per-project store dir on a normal filesystem.
+def runtime_dir(project_root=None):
+    """Per-project dir for ephemeral runtime state (warm-server address, relocated DB).
 
-    Keyed by the absolute project path so ingest and query agree, and so two
-    different projects never share one table.
+    Always under the user cache (never in the repo), keyed by the absolute project
+    path so ingest/query/serve all agree and two projects never collide.
     """
-    project_root = Path(project_root).resolve()
+    project_root = Path(project_root or Path.cwd()).resolve()
     key = hashlib.sha1(str(project_root).encode("utf-8")).hexdigest()[:12]
     name = project_root.name or "project"
     base = os.environ.get("LOCALAPPDATA")
     base = Path(base) if base else (Path.home() / ".cache")
-    return base / "AgentBrain" / "rag" / "{}-{}".format(name, key) / "db"
+    return base / "AgentBrain" / "rag" / "{}-{}".format(name, key)
+
+
+def _relocated_db_dir(project_root):
+    """Deterministic per-project store dir on a normal filesystem (FAT/exFAT fallback)."""
+    return runtime_dir(project_root) / "db"
+
+
+def serve_state_path(project_root=None):
+    """Descriptor file (host/port/token/pid) for this project's warm RAG server."""
+    return runtime_dir(project_root) / "serve.json"
 
 
 def resolve_store_dir(preferred, project_root=None, announce=False):
