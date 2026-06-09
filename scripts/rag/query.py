@@ -14,6 +14,7 @@ Usage:
 """
 
 import os
+import re
 import sys
 import argparse
 from pathlib import Path
@@ -22,6 +23,30 @@ from pathlib import Path
 # query reads from the exact location ingest wrote to, incl. FAT/exFAT relocation.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from rag_paths import resolve_store_dir, enable_utf8_io
+
+
+def load_cite_keys(bib_path):
+    """Map a source PDF's basename -> its BibTeX \\cite key, via the 'file' field.
+
+    Lets query annotate each retrieved chunk with the exact \\cite key, so the writer
+    cites deterministically instead of guessing. Returns {} if references.bib is
+    missing or unreadable (key annotation is then simply omitted).
+    """
+    try:
+        text = Path(bib_path).read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return {}
+    mapping = {}
+    # Split into entries: @type{key, ...body...} up to the next entry or EOF.
+    for m in re.finditer(r"@\w+\s*\{\s*([^,\s]+)\s*,(.*?)(?=@\w+\s*\{|\Z)", text, re.DOTALL):
+        key, body = m.group(1), m.group(2)
+        fm = re.search(r"\bfile\s*=\s*[{\"]([^}\"]+)[}\"]", body, re.IGNORECASE)
+        if fm:
+            # references.bib stores a relative path like 'data/sources/paper.pdf'.
+            base = os.path.basename(fm.group(1).strip().replace("\\", "/").rstrip("/"))
+            if base:
+                mapping[base] = key
+    return mapping
 
 
 def ensure_brain_venv():
@@ -130,6 +155,9 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
     root = Path.cwd()
     results = []
 
+    # PDF basename -> \cite key, so each result carries the exact citation key.
+    cite_keys = load_cite_keys(root / "docs" / "references.bib")
+
     stores = []
     if scope in ("local", "both"):
         local_db_path = resolve_store_dir(root / ".ai" / "rag" / "db", project_root=root)
@@ -165,6 +193,7 @@ def query(question, k=5, scope="both", local_weight=0.7, global_weight=0.3):
                     "source_file": row["source_file"],
                     "page": row["page"],
                     "headings": row.get("headings", ""),
+                    "cite_key": cite_keys.get(row["source_file"], ""),
                     "distance": row.get("_distance", 0),
                     "weighted_score": (1 / (1 + row.get("_distance", 0))) * weight,
                     "db_scope": store_name,
@@ -205,16 +234,22 @@ def main():
         print(f"Source: {r['source_file']}, Page: {r['page']}")
         if r.get("headings"):
             print(f"Section: {r['headings']}")
+        if r.get("cite_key"):
+            print(f"Citiraj: \\cite[str.~{r['page']}]{{{r['cite_key']}}}")
         print(f"Content: {r['text'][:500]}...")
 
     print("\n" + "=" * 60)
     print("Izvori:")
     sources = set()
     for r in results:
-        src = f"  [{r['db_scope']}] [{r['source_file']}, str. {r['page']}]"
+        cite = f" -> \\cite{{{r['cite_key']}}}" if r.get("cite_key") else ""
+        src = f"  [{r['db_scope']}] [{r['source_file']}, str. {r['page']}]{cite}"
         sources.add(src)
     for s in sorted(sources):
         print(s)
+    if any(not r.get("cite_key") for r in results):
+        print("\n  (Bez \\cite ključa = nema unosa u docs/references.bib s 'file' poljem "
+              "za taj PDF. data_fetcher treba dodati citat s --file.)")
 
 
 if __name__ == "__main__":

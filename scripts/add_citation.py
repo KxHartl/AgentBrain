@@ -112,6 +112,10 @@ def main():
     parser.add_argument("--publisher", help="Publisher name")
     parser.add_argument("--url", help="URL of the document")
     parser.add_argument("--note", help="Additional notes")
+    parser.add_argument("--file", help=(
+        "Path to the local PDF this entry cites (e.g. 'data/sources/paper.pdf'). "
+        "Stored as the BibTeX 'file' field so the RAG query can map a retrieved "
+        "source_file back to its \\cite key. Always pass this when the PDF is local."))
 
     args = parser.parse_args()
 
@@ -140,6 +144,11 @@ def main():
         print("Error: Provide either --doi or (--id + --title).")
         parser.print_help()
         return
+
+    # Link the entry to its local PDF (BibTeX 'file' field). This is what lets the
+    # RAG query resolve a retrieved source_file -> \cite key deterministically.
+    if args.file:
+        fields["file"] = args.file
 
     # Find bib file
     root = Path.cwd()
