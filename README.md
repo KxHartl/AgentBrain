@@ -97,7 +97,9 @@ otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`). No configuration s
 
 ### Setting up the env
 
-Bootstrap creates `~/.agentbrain/.venv` automatically the first time. To rebuild it by hand:
+You normally don't — it's automatic. LiteRealm bootstrap builds `~/.agentbrain/.venv` on
+first run (skipped inside Codespaces to keep container creation light), and the RAG scripts
+build it on first `ingest`/`query` if it's still missing. To (re)build it by hand:
 
 ```powershell
 ~/.agentbrain/scripts/setup_env.ps1     # Windows

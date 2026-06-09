@@ -16,21 +16,44 @@ from pathlib import Path
 
 
 def ensure_brain_venv():
-    """Re-exec under the AgentBrain venv if the current interpreter lacks RAG deps.
+    """Run under the AgentBrain venv; build it on first use if it is missing.
 
-    Lets `python ~/.agentbrain/scripts/rag/ingest.py` work even when invoked with a
-    plain `python` that has no docling/lancedb — the heavy deps live in the brain venv.
+    Lets the RAG scripts work even when invoked with a plain `python` that has no
+    docling/lancedb — the heavy deps live in the shared brain venv. If that venv
+    doesn't exist yet (fresh clone / Codespace), build it once via setup_env and
+    re-exec under it. Guarded against re-exec loops.
     """
     import importlib.util
+    import subprocess
     if importlib.util.find_spec("lancedb") is not None:
-        return
+        return  # deps already available in this interpreter
+
     brain = Path(os.environ.get("AGENTBRAIN_PATH") or (Path.home() / ".agentbrain"))
-    for cand in (brain / ".venv" / "bin" / "python", brain / ".venv" / "Scripts" / "python.exe"):
-        if cand.exists() and Path(sys.executable).resolve() != cand.resolve():
-            # subprocess (not os.execv): execv is async on Windows and would let the
-            # caller return before this finishes. run() waits and propagates the code.
-            import subprocess
-            sys.exit(subprocess.run([str(cand), *sys.argv]).returncode)
+    venv_pythons = (brain / ".venv" / "bin" / "python", brain / ".venv" / "Scripts" / "python.exe")
+    vpy = next((c for c in venv_pythons if c.exists()), None)
+
+    # Brain venv exists and we're not in it → re-exec under it.
+    # subprocess (not os.execv): execv is async on Windows and would let the caller
+    # return before this finishes. run() waits and propagates the exit code.
+    if vpy and Path(sys.executable).resolve() != vpy.resolve():
+        sys.exit(subprocess.run([str(vpy), *sys.argv]).returncode)
+
+    # No usable venv. Build it once, then re-exec; the sentinel prevents a loop.
+    if os.environ.get("_AGENTBRAIN_VENV_TRIED"):
+        return  # already tried — let the caller's import error report the missing dep
+    setup = brain / "scripts" / ("setup_env.ps1" if os.name == "nt" else "setup_env.sh")
+    if not setup.exists():
+        return
+    setup_cmd = (["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(setup)]
+                 if os.name == "nt" else ["bash", str(setup)])
+    print("RAG deps not found — building the AgentBrain environment "
+          "(one-time, a few minutes)...", flush=True)
+    if subprocess.run(setup_cmd).returncode != 0:
+        return  # setup failed; caller will report the missing dependency
+    vpy = next((c for c in venv_pythons if c.exists()), None)
+    if vpy:
+        env = {**os.environ, "_AGENTBRAIN_VENV_TRIED": "1"}
+        sys.exit(subprocess.run([str(vpy), *sys.argv], env=env).returncode)
 
 
 def get_paths(scope):
