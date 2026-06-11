@@ -1,13 +1,14 @@
 # AgentBrain Manifest — Version contract with LiteRealm projects.
 # LiteRealm bootstrap reads this to stamp version into project.yaml.
 
-version: "2.1.0"
+version: "2.2.0"
 min_literealm_version: "2.0.0"
 
 rag_backend: "lancedb"
 pdf_parser: "docling"
 
 scripts:
+  sync_agents: "scripts/sync_agents.py"
   ingest: "scripts/rag/ingest.py"
   query: "scripts/rag/query.py"
   add_citation: "scripts/add_citation.py"

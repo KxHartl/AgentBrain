@@ -58,6 +58,19 @@ Six specialists in `agents/`. Each declares its **role**, **triggers** (phrases 
 
 **Pipeline:** `latex_architect → data_fetcher → writer → qa_reviewer → latex_surgeon → rag_indexer`
 
+### Claude Code subagents
+
+The definitions here are tool-agnostic. For Claude Code they are additionally synced into a
+project as **native subagents** (`.claude/agents/*.md`), so the main session delegates via the
+Task tool — each specialist runs in its own context window (cheaper, more focused):
+
+```bash
+python ~/.agentbrain/scripts/sync_agents.py --project-root /path/to/project
+python ~/.agentbrain/scripts/sync_agents.py --project-root . --check   # CI / staleness check
+```
+
+Edit agents **here**, never in `.claude/agents/` (those files are overwritten on sync).
+
 ---
 
 ## 📐 Templates
