@@ -75,8 +75,11 @@ Notice: own words (not the raw English chunk), one claim per `\cite`, page prese
 - Never translate a passage and present it as your own analysis without a citation.
 - Don't stretch one source over a whole paragraph of unrelated claims — cite per claim.
 
-## Writing standards
+## Writing standards & Author Voice
 
+- **Read Author Profile**: Check `~/.agentbrain/style/author_profile.yaml` and reference samples in `~/.agentbrain/style/samples/` to match the author's voice and vocabulary.
+- **Anti-AI Cliché Filter**: Strictly avoid generic AI filler phrases (e.g., "ključno je napomenuti", "u današnje vrijeme", "sveobuhvatna analiza", "delve into", "crucial to note").
+- **High Burstiness & Active Voice**: Mix short punchy statements (5-8 words) with longer technical descriptions. Use active engineering voice ("Mjerenjem momenta utvrđeno je..." instead of heavy passive chains).
 - Use formal Croatian academic register (no colloquialisms).
 - Every claim must have a citation. No unsupported assertions.
 - Follow the structure defined in the template's `structure.md`.

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Push every commit immediately: a local-only commit is one disk failure from gone.
+branch=$(git symbolic-ref --short -q HEAD) || exit 0
+git push -q origin "$branch" >/dev/null 2>&1 &
