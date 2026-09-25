@@ -330,6 +330,37 @@ def _wait_for_server(question, k, scope, timeout=45):
     return None
 
 
+def _query_qdrant(question, k):
+    """Query the Qdrant store if configured; None means 'use the LanceDB path'."""
+    from store_adapter import QdrantStore, get_vector_store, load_env, ollama_embed, strict_embed
+    load_env()
+    if not os.environ.get("QDRANT_URL"):
+        return None
+    store = get_vector_store()
+    if not isinstance(store, QdrantStore):
+        return None
+    try:
+        vec = ollama_embed(question)
+    except Exception as e:  # noqa: BLE001
+        if strict_embed():
+            raise SystemExit(f"Ollama embedding failed and RAG_STRICT_EMBED=1: {e}")
+        print(f"  Ollama embedding failed ({e}); falling back to LanceDB.")
+        return None
+    if len(vec) != store.dim():
+        raise SystemExit(f"Embedding dim {len(vec)} != collection dim {store.dim()} "
+                         f"({store.collection}). Set OLLAMA_EMBED_MODEL to the model that built it.")
+    cite_keys = load_cite_keys(Path.cwd() / "docs" / "references.bib")
+    out = []
+    for row in store.search(vec, k):
+        out.append({
+            "text": row.get("text", ""), "source_file": row.get("source_file", ""),
+            "page": row.get("page", ""), "headings": row.get("headings", ""),
+            "cite_key": cite_keys.get(row.get("source_file", ""), ""),
+            "distance": 1 - row["score"], "weighted_score": row["score"], "db_scope": "QDRANT",
+        })
+    return out
+
+
 def main():
     enable_utf8_io()
     parser = argparse.ArgumentParser(description="Query LanceDB RAG databases.")
@@ -341,6 +372,13 @@ def main():
                         help="Don't use/start the warm server; load models in-process.")
     args = parser.parse_args()
     question = " ".join(args.question)
+
+    # Server-first: the shared Qdrant corpus (QDRANT_URL in the project .env), embedded
+    # with the Ollama model that built it. stdlib only -- no venv, no torch.
+    results = _query_qdrant(question, args.k)
+    if results is not None:
+        print_results(question, "qdrant", results)
+        return
 
     # Fast path: a warm server already has the model loaded -> instant, and we never
     # import torch/lancedb here. If none is running, start one in the background (so

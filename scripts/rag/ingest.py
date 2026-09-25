@@ -79,9 +79,24 @@ def get_paths(scope):
 
 
 def load_embeddings():
-    """Load embedding model: prefer Gemini cloud, fall back to local."""
-    from dotenv import load_dotenv
-    load_dotenv()
+    """Load embedding model: Ollama (OLLAMA_EMBED_MODEL), then Gemini, then local.
+
+    With RAG_STRICT_EMBED=1 an Ollama failure is fatal: a silent substitution would
+    build a differently-shaped corpus.
+    """
+    from store_adapter import load_env, ollama_embedder, strict_embed
+    load_env()
+
+    if os.environ.get("OLLAMA_EMBED_MODEL") or strict_embed():
+        try:
+            embed_fn, dim, model_id = ollama_embedder()
+            print(f"Using Ollama embeddings ({model_id}, dim {dim}).")
+            return embed_fn, dim, model_id
+        except Exception as e:  # noqa: BLE001
+            if strict_embed():
+                print(f"Ollama embedding failed and RAG_STRICT_EMBED=1: {e}")
+                sys.exit(1)
+            print(f"  Ollama failed ({e}), trying other providers...")
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key:
@@ -224,7 +239,7 @@ def parse_with_docling(sources_dir, enable_ocr=False):
     return all_chunks
 
 
-def _fallback_parse(pdf_path):
+def _fallback_parse(pdf_path, domain="general"):
     """Fallback parser using pypdf when Docling fails on a specific file."""
     try:
         from pypdf import PdfReader
@@ -247,6 +262,7 @@ def _fallback_parse(pdf_path):
                         "source_file": pdf_path.name,
                         "page": page_num + 1,
                         "headings": "",
+                        "domain": domain,
                     })
                 start += chunk_size - chunk_overlap
 
