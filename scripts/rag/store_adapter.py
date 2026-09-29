@@ -116,7 +116,8 @@ class QdrantStore:
         if have != dim:
             raise RuntimeError(f"Collection {self.collection} is {have}-dim, embeddings are {dim}-dim.")
 
-    def upsert_chunks(self, chunks, model_id, dim, scope="local", domain="general", batch=100):
+    def upsert_chunks(self, chunks, model_id, dim, scope="local", domain="general", batch=100,
+                      project=None):
         self.ensure_collection(dim)
         n = 0
         for i in range(0, len(chunks), batch):
@@ -131,12 +132,26 @@ class QdrantStore:
                         "page": str(c.get("page", "")), "headings": c.get("headings", ""),
                         "domain": c.get("domain", domain), "intelligence": c.get("intelligence", domain),
                         "scope": scope, "model_id": model_id,
+                        **({"project": project} if project else {}),
                     },
                 })
             _http("PUT", f"{self.url}/collections/{self.collection}/points?wait=true",
                   {"points": points}, timeout=self.timeout)
             n += len(points)
         return n
+
+    def delete_sources(self, names, project):
+        """Delete the points of these source files - only those tagged with `project`.
+
+        The collection is shared across projects (and holds points written before
+        tagging existed), so an untagged or foreign point is never touched.
+        """
+        if not names:
+            return
+        flt = {"must": [{"key": "source_file", "match": {"any": list(names)}},
+                        {"key": "project", "match": {"value": project}}]}
+        _http("POST", f"{self.url}/collections/{self.collection}/points/delete?wait=true",
+              {"filter": flt}, timeout=self.timeout)
 
 
 class LanceStore:
@@ -155,6 +170,34 @@ class LanceStore:
             db.drop_table(self.table)
         db.create_table(self.table, data=rows)
         return len(rows)
+
+    def _db(self):
+        import lancedb
+        self.store_dir.mkdir(parents=True, exist_ok=True)
+        return lancedb.connect(str(self.store_dir))
+
+    def append_chunks(self, rows):
+        """Add rows to the table, creating it on first use (incremental sync)."""
+        if not rows:
+            return 0
+        db = self._db()
+        if self.table in db.table_names():
+            db.open_table(self.table).add(rows)
+        else:
+            db.create_table(self.table, data=rows)
+        return len(rows)
+
+    def delete_sources(self, names, project=None):  # noqa: ARG002 - per-project table already
+        db = self._db()
+        if not names or self.table not in db.table_names():
+            return
+        quoted = ", ".join("'" + n.replace("'", "''") + "'" for n in names)
+        db.open_table(self.table).delete(f"source_file IN ({quoted})")
+
+    def drop(self):
+        db = self._db()
+        if self.table in db.table_names():
+            db.drop_table(self.table)
 
 
 def get_vector_store(project_root=None):

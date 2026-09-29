@@ -1,7 +1,7 @@
 # AgentBrain Manifest — Version contract with LiteRealm projects.
 # LiteRealm bootstrap reads this to stamp version into project.yaml.
 
-version: "2.3.0"
+version: "2.4.0"
 min_literealm_version: "2.0.0"
 
 rag_backend: "qdrant+lancedb"   # Qdrant (QDRANT_URL) first, LanceDB fallback
@@ -11,7 +11,14 @@ scripts:
   sync_agents: "scripts/sync_agents.py"
   ingest: "scripts/rag/ingest.py"
   query: "scripts/rag/query.py"
+  sync: "scripts/rag/sync.py"
+  classify: "scripts/rag/classify_source.py"
   add_citation: "scripts/add_citation.py"
+  experiment: "scripts/data/experiment_manager.py"
+  thesis_dashboard: "scripts/thesis_dashboard.py"
+  style_check: "scripts/style/check_style.py"
+  style_humanize: "scripts/style/local_humanizer.py"
+  style_learn: "scripts/style/learn_style.py"
   setup_env_sh: "scripts/setup_env.sh"
   setup_env_ps1: "scripts/setup_env.ps1"
 
@@ -21,6 +28,7 @@ templates:
   - fsb-paper
   - fsb-presentation
   - fsb-video
+  - kev-report
 
 agents:
   - latex_architect

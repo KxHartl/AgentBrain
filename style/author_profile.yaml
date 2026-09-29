@@ -1,0 +1,26 @@
+# AgentBrain author profile — read by the writer agent and by style.sh check/humanize.
+# Built-in defaults (scripts/style/style_common.py) are always applied; entries here extend
+# or override them. `learned:` is written by `style.sh learn <your own text>`.
+#
+# Rebuilt 2026-09 after the disk failure: the original profile and samples were lost.
+# Re-learn it from chapters YOU wrote:  style.sh learn docs/chapters/<file>.tex --save-sample
+
+author: ""
+language: hr
+
+# Extra phrases to flag (case-insensitive), on top of the built-in AI-filler list.
+forbidden_phrases: []
+
+# Extra deterministic rewrites for style.sh humanize ("" deletes a lead-in).
+replacements: {}
+
+# Preferred terminology: wrong -> right (checked by qa_reviewer).
+preferred_terms: {}
+
+targets:
+  min_score: 75
+  min_burstiness: 0.45
+  short_sentence_words: 8
+  long_sentence_words: 40
+
+learned: {}

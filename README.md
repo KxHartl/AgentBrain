@@ -27,10 +27,18 @@ you bootstrap clones it for you. One brain serves all your projects; each projec
 ├── agents/          ← agent definitions (role · triggers · writes_to · never_touches)
 ├── templates/       ← LaTeX templates, one folder per document type
 ├── scripts/
-│   ├── rag/ingest.py   ← index PDFs into LanceDB
+│   ├── rag/ingest.py   ← full index of data/sources/*.pdf
+│   ├── rag/sync.py     ← incremental index of data/sources/** (hash per file)
 │   ├── rag/query.py    ← search the vector store
+│   ├── rag/classify_source.py ← sort a PDF into standards/regulations/papers/...
+│   ├── rag/store_adapter.py   ← Qdrant (QDRANT_URL) first, LanceDB fallback; Ollama embeddings
+│   ├── data/experiment_manager.py ← traceable raw → processed runs + EXPERIMENTS_LOG
+│   ├── style/          ← check_style (Human Style Score), local_humanizer, learn_style
+│   ├── thesis_dashboard.py ← status / audit of a whole thesis
 │   ├── add_citation.py ← fetch BibTeX from a DOI
+│   ├── sync_agents.py  ← agents/ → project .claude/agents/
 │   └── setup_env.{ps1,sh} ← (re)install the RAG Python env
+├── style/           ← author_profile.yaml + samples/ (your own writing voice)
 ├── skills/          ← reusable AI workflows
 ├── gotchas/         ← documented failure modes for agents
 ├── prompts/         ← reasoning templates (CoT, ReAct, ToT)
@@ -44,7 +52,7 @@ you bootstrap clones it for you. One brain serves all your projects; each projec
 
 ## 🤖 Agents
 
-Six specialists in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
+Eight specialists in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
 **writes_to** (allowed directories) and **never_touches** (hard limits).
 
 | Agent | Role | Key restriction |
@@ -55,6 +63,8 @@ Six specialists in `agents/`. Each declares its **role**, **triggers** (phrases 
 | `qa_reviewer` | Review & critique | **Read-only** — only writes `docs/REVIEW.md` |
 | `latex_surgeon` | Fix compile errors | Touches compilation only, never content |
 | `rag_indexer` | Maintain the vector database | `data/sources/` is read-only for it |
+| `data_engineer` | Experiments, processing, figures & tables | `data/raw/` append-only; provenance for every result |
+| `defense_simulator` | Thesis defense drill | Only writes `docs/DEFENSE_PREP.md` |
 
 **Pipeline:** `latex_architect → data_fetcher → writer → qa_reviewer → latex_surgeon → rag_indexer`
 
@@ -98,6 +108,9 @@ RAG isn't optional and isn't per-project: the scripts and their Python deps live
 python ~/.agentbrain/scripts/rag/ingest.py            # add --ocr for scanned PDFs
 python ~/.agentbrain/scripts/rag/ingest.py --scope global   # index into the global store
 
+# Incremental: only new/changed PDFs anywhere under data/sources/
+python ~/.agentbrain/scripts/rag/sync.py              # --dry-run, --full, --prune (Qdrant)
+
 # Query
 python ~/.agentbrain/scripts/rag/query.py "your question" --scope both
 
@@ -105,8 +118,14 @@ python ~/.agentbrain/scripts/rag/query.py "your question" --scope both
 python ~/.agentbrain/scripts/add_citation.py --doi "10.1109/TRO.2024.1234567"
 ```
 
-**Embeddings** use Gemini cloud when `GEMINI_API_KEY` is present in the project's `.env`,
-otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`). No configuration switch — it adapts.
+**Embeddings**: local Ollama (`OLLAMA_EMBED_MODEL`, e.g. `qwen3-embedding:8b`) when set, then
+Gemini (`GEMINI_API_KEY`), otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`);
+`RAG_STRICT_EMBED=1` refuses to fall back silently. **Store**: Qdrant when `QDRANT_URL` answers
+(the homelab collection is shared — `sync --prune` only deletes points tagged with this project),
+otherwise LanceDB in the project's `.ai/rag/db/`.
+
+In projects, call all of this through the LiteRealm helpers (`rag`, `experiment`, `style`,
+`thesis` in `.ai/scripts/helpers/`), which pick this venv and pass `--project-root`.
 
 ### Setting up the env
 
