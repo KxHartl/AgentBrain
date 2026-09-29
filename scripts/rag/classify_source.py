@@ -35,6 +35,8 @@ RULES = {
         (r"\bCommission (Implementing|Delegated)\b", 3), (r"\bOfficial Journal\b", 2),
         (r"\bTSI\b", 2), (r"\bUredb[aeu]\b", 3), (r"\bDirektiv[aeu]\b", 2), (r"\bNarodne novine\b", 3),
         (r"\bPravilnik\b", 2), (r"\bZakon o\b", 2), (r"\bERA\b", 1), (r"\beur-lex\b", 2),
+        (r"\b3\d{4}[RLD]\d{4}\b", 3),                  # CELEX number, e.g. 32018R0545
+        (r"^(reg|dir|dec)\s\d{4}\s\d+", 2),             # reg_2018_545_... file names
     ],
     "papers": [
         (r"\bdoi\.org/|\bdoi:\s*10\.|\b10\.\d{4,9}/", 3), (r"\babstract\b", 2), (r"\bkeywords?\b", 1),
