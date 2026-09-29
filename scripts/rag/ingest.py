@@ -136,10 +136,11 @@ def load_embeddings():
         sys.exit(1)
 
 
-def parse_with_docling(sources_dir, enable_ocr=False):
+def parse_with_docling(sources_dir, enable_ocr=False, pdf_files=None):
     """
     Parse PDFs using Docling DocumentConverter + HybridChunker.
     Handles tables, multi-column layouts, figures, and complex formatting.
+    `pdf_files` restricts parsing to these files (used by sync.py).
     """
     try:
         from docling.document_converter import DocumentConverter
@@ -149,7 +150,7 @@ def parse_with_docling(sources_dir, enable_ocr=False):
         print("Note: Docling requires Python 3.10+ and is ~500MB (includes ML models).")
         sys.exit(1)
 
-    pdf_files = list(sources_dir.glob("*.pdf"))
+    pdf_files = list(pdf_files) if pdf_files is not None else list(sources_dir.glob("*.pdf"))
     if not pdf_files:
         print(f"No PDF files found in {sources_dir}")
         sys.exit(1)
