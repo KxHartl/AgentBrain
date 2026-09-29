@@ -1,0 +1,268 @@
+% KONČAR – Električna vozila (KEV) technical report — kev-report profile v1.0
+% Reproduces the KEV corporate Word template (title page with document block,
+% running header, ownership footer box). latex_architect renders the double-brace
+% placeholders from .ai/config/project.yaml via scripts/render_template.py.
+%
+% Engine: Tectonic / XeLaTeX only (fontspec). Fonts ship in docs/fonts/:
+%   body  = Carlito (metric-compatible Calibri clone, SIL OFL 1.1)
+%   heads = DejaVu Sans (Bitstream Vera licence) as a stand-in for Verdana
+% Logo: docs/figures/kev_logo.png (copied by render_template.py --scaffold).
+
+\documentclass[11pt,a4paper]{article}
+
+% --- Fonts & language (XeTeX) ---
+\usepackage{fontspec}
+\setmainfont{Carlito}[
+  Path           = fonts/,
+  Extension      = .ttf,
+  UprightFont    = *-Regular,
+  BoldFont       = *-Bold,
+  ItalicFont     = *-Italic,
+  BoldItalicFont = *-BoldItalic
+]
+% Verdana stand-in for headings, header, footer and the TOC title.
+\newfontfamily\kevheadfont{DejaVuSans}[
+  Path      = fonts/,
+  Extension = .ttf,
+  BoldFont  = *-Bold
+]
+\usepackage[croatian]{babel}
+
+% --- Colours (KEV corporate) ---
+\usepackage{xcolor}
+\definecolor{kevblue}{RGB}{0,130,202}      % #0082CA headings, header, footer
+\definecolor{kevcaption}{HTML}{44546A}     % captions
+\definecolor{kevtablehead}{HTML}{51A5EE}   % table header text
+% Table header cell helper: \kevth{Parametar} & \kevth{Vrijednost} \\
+\newcommand{\kevth}[1]{\textcolor{kevtablehead}{#1}}
+
+% --- Layout: 25 mm side margins, header baseline ~15 mm, footer box ~12 mm from bottom ---
+\usepackage[a4paper,left=25mm,right=25mm,top=27mm,bottom=30mm,
+            headheight=20pt,headsep=8.8mm,footskip=17mm]{geometry}
+\usepackage{setspace}
+\setstretch{1.06}               % Calibri 11 pt at Word "1.15" line spacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt plus 2pt minus 1pt}   % Word "after: 8 pt"
+\usepackage{enumitem}
+\setlist{itemsep=1pt,parsep=0pt,topsep=2pt}
+
+% --- Graphics, tables ---
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{lastpage}
+
+% --- Captions: "Tablica 1. Naslov" above, "Slika 1. Naslov" below,
+%     small italic #44546A, left aligned, numbered continuously ---
+\usepackage{caption}
+\DeclareCaptionFont{kevcaption}{\color{kevcaption}}
+\captionsetup{font={scriptsize,it,kevcaption},labelsep=period,
+              justification=raggedright,singlelinecheck=false}
+\captionsetup[figure]{position=below,skip=6pt}
+\captionsetup[table]{position=above,skip=10pt}
+
+% --- Headings (Verdana-style bold, KEV blue) ---
+\usepackage{titlesec}
+\titleformat{\section}
+  {\kevheadfont\bfseries\fontsize{11.5}{14}\selectfont\color{kevblue}}
+  {\makebox[12.7mm][l]{\thesection.}}{0pt}{}
+\titlespacing*{\section}{0pt}{20pt plus 4pt minus 2pt}{0pt}
+\titleformat{\subsection}
+  {\kevheadfont\bfseries\fontsize{10.5}{13}\selectfont\color{kevblue}}
+  {\thesubsection}{0.45em}{}
+\titlespacing*{\subsection}{5mm}{16pt plus 4pt minus 2pt}{0pt}
+\titleformat{\subsubsection}
+  {\kevheadfont\bfseries\fontsize{10}{12}\selectfont\color{kevblue}}
+  {\thesubsubsection}{0.45em}{}
+\titlespacing*{\subsubsection}{5mm}{12pt plus 3pt minus 2pt}{2pt}
+\titleformat{\paragraph}[runin]
+  {\normalfont\bfseries}{}{0em}{}[.]
+\titlespacing*{\paragraph}{0pt}{6pt plus 2pt}{0.5em}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+% Optional: every \section (incl. starred) starts on a new page.
+% project.yaml: kev_section_newpage: true
+\newif\ifkevsectionnewpage
+\kevsectionnewpage{{KEV_SECTION_NEWPAGE}}
+\newcommand{\sectionbreak}{\ifkevsectionnewpage\clearpage\fi}
+
+% --- Table of contents ("Sadržaj", Word-like dotted leaders) ---
+\usepackage{tocloft}
+\renewcommand{\cfttoctitlefont}{\kevheadfont\bfseries\fontsize{16}{19}\selectfont\color{kevblue}}
+\renewcommand{\cftaftertoctitle}{}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{0pt}
+\renewcommand{\cftdotsep}{0.3}
+\cftsetpnumwidth{1.2em}
+\cftsetrmarg{1.4em}
+\renewcommand{\cftsecfont}{\normalfont}
+\renewcommand{\cftsecpagefont}{\normalfont}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsecaftersnum}{.}
+\setlength{\cftsecindent}{0pt}
+\setlength{\cftsecnumwidth}{8.5mm}
+\setlength{\cftbeforesecskip}{5pt}
+\renewcommand{\cftsubsecfont}{\normalfont}
+\renewcommand{\cftsubsecpresnum}{\bfseries}
+\setlength{\cftsubsecindent}{0pt}
+\setlength{\cftsubsecnumwidth}{13mm}
+\setlength{\cftbeforesubsecskip}{5pt}
+\renewcommand{\cftfigpresnum}{Slika~}
+\renewcommand{\cfttabpresnum}{Tablica~}
+\renewcommand{\cftfigaftersnum}{.}
+\renewcommand{\cfttabaftersnum}{.}
+\setlength{\cftfignumwidth}{18mm}
+\setlength{\cfttabnumwidth}{20mm}
+\renewcommand{\cftloftitlefont}{\cfttoctitlefont}
+\renewcommand{\cftlottitlefont}{\cfttoctitlefont}
+
+% --- Croatian names (addto — babel croatian overrides \renewcommand) ---
+\addto\captionscroatian{%
+  \renewcommand{\figurename}{Slika}%
+  \renewcommand{\tablename}{Tablica}%
+  \renewcommand{\contentsname}{Sadržaj}%
+  \renewcommand{\listfigurename}{Popis slika}%
+  \renewcommand{\listtablename}{Popis tablica}%
+  \renewcommand{\refname}{Literatura}%
+}
+
+% --- Math (default Latin Modern math; Fira Math is not in the Tectonic bundle) ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% --- References & links ---
+\usepackage{cite}
+\usepackage[hidelinks,unicode]{hyperref}
+
+% --- Justified text without hyphenation (as in the Word template) ---
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\tolerance=10000
+\hbadness=10000
+\emergencystretch=\maxdimen
+
+% ============================================================
+% DOCUMENT METADATA — latex_architect popunjava iz project.yaml
+% ============================================================
+\newcommand{\kevcompany}{KONČAR \textendash{} ELEKTRIČNA VOZILA d.d.}
+\newcommand{\kevcompanyhead}{KONČAR \textendash{} ELEKTRIČNA VOZILA d.d}
+\newcommand{\kevtitle}{{{NASLOV_SEMINARA}}}
+\newcommand{\kevtitleshort}{{{NASLOV_SEMINARA_KRATKI}}}
+\newcommand{\kevdepartment}{{{KEV_ODJEL}}}
+\newcommand{\kevfilename}{{{KEV_DATOTEKA}}}
+\newcommand{\kevdocnumber}{{{KEV_BROJ_DOKUMENTA}}}
+\newcommand{\kevdate}{{{KEV_DATUM}}}
+\newcommand{\kevissue}{{{KEV_IZDANJE}}}
+\newcommand{\kevauthor}{{{KEV_IZRADIO}}}
+\newcommand{\kevreviewer}{{{KEV_PREGLEDAO}}}
+\newcommand{\kevapprover}{{{KEV_ODOBRIO}}}
+
+\hypersetup{pdftitle={\kevtitle}, pdfauthor={\kevauthor}, pdfsubject={KONČAR – Električna vozila d.d.}}
+
+% --- Running header / ownership footer box ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[L]{\kevheadfont\bfseries\fontsize{11.5}{14}\selectfont\color{kevblue}\kevtitleshort}
+\fancyhead[R]{\kevheadfont\bfseries\fontsize{9}{11}\selectfont\color{kevblue}\kevcompanyhead}
+\newcommand{\kevfooterbox}{%
+  {\setlength{\fboxrule}{1.5pt}\setlength{\fboxsep}{0pt}%
+   \fbox{\begin{minipage}[c][8mm][c]{\dimexpr\textwidth-2\fboxrule\relax}
+     \kevheadfont\fontsize{8.3}{10}\selectfont\color{kevblue}%
+     \hspace*{4.5mm}%
+     \begin{tabular}[c]{@{}c@{}}
+       Ovaj dokument je vlasništvo \textbf{\kevcompany}\\
+       Neovlašteno kopiranje nije dozvoljeno!
+     \end{tabular}%
+     \hfill Stranica: \thepage/\pageref*{LastPage}\hspace*{3.5mm}%
+   \end{minipage}}}}
+\fancyfoot[C]{\kevfooterbox}
+\fancypagestyle{plain}{}   % \tableofcontents etc. keep the KEV header/footer
+
+% --- Title page ---
+\newcommand{\kevtb}[1]{\textcolor{kevblue}{\textbf{#1}}}
+\newcommand{\kevtitlepage}{%
+  \thispagestyle{empty}%
+  \vspace*{-14mm}%
+  \noindent
+  \begin{minipage}[t]{0.6\textwidth}
+    \vspace{0pt}\hspace*{3.9mm}\includegraphics[width=49.4mm]{figures/kev_logo.png}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.35\textwidth}
+    \vspace{1.2mm}\raggedleft\fontsize{11}{13}\selectfont\kevtb{\kevdepartment}\hspace*{6.5mm}
+  \end{minipage}\par
+  \vspace{15mm}%
+  % File / document number row (thin dashed separators)
+  \noindent
+  \begin{tikzpicture}[x=1mm,y=1mm,line width=0.4pt]
+    \draw[black] (0.15,0) -- (159.85,0) (0.15,5.8) -- (159.85,5.8);
+    \draw[black,dash pattern=on 0.6pt off 0.6pt] (0.15,0) -- (0.15,5.8) (74.3,0) -- (74.3,5.8)
+        (105.2,0) -- (105.2,5.8) (159.85,0) -- (159.85,5.8);
+    \node[anchor=west,inner sep=0pt,text=kevblue,font=\fontsize{8.2}{10}\selectfont]
+        at (1.8,2.9) {Datoteka: \kevfilename};
+    \node[anchor=west,inner sep=0pt,text=kevblue,font=\fontsize{8.2}{10}\selectfont]
+        at (107,2.9) {Broj dokumenta: \kevdocnumber};
+  \end{tikzpicture}\par
+  \vfill
+  \begin{center}
+    \fontsize{26}{32}\selectfont\kevtb{\kevtitle}\par
+  \end{center}
+  \vfill
+  % Approval block
+  \noindent\hspace*{1.2mm}%
+  {\fontsize{9.2}{11}\selectfont\renewcommand{\arraystretch}{1.0}\setlength{\tabcolsep}{1.5pt}%
+  \begin{tabular}{|>{\centering\arraybackslash}p{\dimexpr30mm-3pt}
+                  |>{\centering\arraybackslash}p{\dimexpr13.4mm-3pt}
+                  |>{\centering\arraybackslash}p{\dimexpr36.6mm-3pt}
+                  |>{\centering\arraybackslash}p{\dimexpr37.6mm-3pt}
+                  |>{\centering\arraybackslash}p{\dimexpr40mm-3pt-3pt}|}
+    \hline
+    \rule{0pt}{4.5mm}\kevtb{Datum:} & \kevtb{Izdanje:} & \kevtb{Izradio:}
+      & \kevtb{Pregledao:} & \kevtb{Odobrio:} \\[3.8mm]
+    \kevtb{\kevdate} & \kevtb{\kevissue} & \kevtb{\kevauthor}
+      & \kevtb{\kevreviewer} & \kevtb{\kevapprover} \\[3.3mm]
+    \hline
+  \end{tabular}}\par
+  \vspace{-\parskip}\vspace{-0.4mm}%
+  \noindent\hspace*{1.2mm}%
+  {\setlength{\fboxrule}{1.5pt}\setlength{\fboxsep}{0pt}%
+   \fbox{\begin{minipage}[c][7.2mm][c]{\dimexpr157.6mm-3pt\relax}
+     \fontsize{7.9}{9.6}\selectfont\color{kevblue}%
+     \begin{minipage}[c]{0.855\linewidth}\centering
+       Ovaj dokument je vlasništvo \textbf{\kevcompany}\\
+       Neovlašteno kopiranje nije dozvoljeno!
+     \end{minipage}\hfill
+     \begin{tabular}[c]{@{}l@{}}Ukupno\\stranica: \pageref*{LastPage}\end{tabular}\hspace*{6.5mm}%
+   \end{minipage}}}\par
+  \vspace{3.5mm}%
+  \clearpage
+}
+
+% ============================================================
+\begin{document}
+
+\kevtitlepage
+
+\tableofcontents
+\clearpage
+{{LISTOFFIGURES}}
+{{LISTOFTABLES}}
+
+\input{chapters/00-uvod}
+
+{{CHAPTER_INPUTS}}
+
+\input{chapters/zakljucak}
+
+% ---- LITERATURA ----
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}

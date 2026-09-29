@@ -11,7 +11,7 @@ BRAIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if (($# > 0)); then
   FORMATS=("$@")
 else
-  FORMATS=(fsb-seminar fsb-thesis fsb-paper fsb-presentation)
+  FORMATS=(fsb-seminar fsb-thesis fsb-paper fsb-presentation kev-report)
 fi
 
 if ! command -v tectonic >/dev/null 2>&1; then

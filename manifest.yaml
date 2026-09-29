@@ -28,6 +28,7 @@ templates:
   - fsb-paper
   - fsb-presentation
   - fsb-video
+  - kev-report
 
 agents:
   - latex_architect
