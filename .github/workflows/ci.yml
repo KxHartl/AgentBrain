@@ -29,10 +29,19 @@ jobs:
         run: python tests/lint-agents.py
 
       - name: Byte-compile scripts
-        run: python -m py_compile scripts/render_template.py scripts/add_citation.py scripts/rag/ingest.py scripts/rag/query.py
+        run: >-
+          python -m py_compile scripts/render_template.py scripts/add_citation.py scripts/sync_agents.py
+          scripts/thesis_dashboard.py scripts/data/experiment_manager.py
+          scripts/rag/ingest.py scripts/rag/query.py scripts/rag/serve.py scripts/rag/store_adapter.py
+          scripts/rag/sync.py scripts/rag/classify_source.py
+          scripts/style/style_common.py scripts/style/check_style.py
+          scripts/style/local_humanizer.py scripts/style/learn_style.py
+
+      - name: Unit tests (experiment manager, style tools, dashboard, classifier)
+        run: python -m unittest discover -s tests -p "test_*.py" -v
 
       - name: Compile every LaTeX template (Croatian glyphs + bold)
         run: bash tests/compile-template.sh
 
-      - name: RAG roundtrip (ingest -> query, local embeddings)
+      - name: RAG roundtrip (ingest/sync -> query, local embeddings)
         run: bash tests/rag-roundtrip.sh
