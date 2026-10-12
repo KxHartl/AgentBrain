@@ -36,7 +36,7 @@ you bootstrap clones it for you. One brain serves all your projects; each projec
 ├── prompts/         ← reasoning templates (CoT, ReAct, ToT)
 ├── rag/{db,sources} ← global vector store + cross-project reference PDFs
 ├── .venv/           ← the one Python env that powers RAG everywhere
-├── manifest.yaml    ← version contract with LiteRealm
+├── manifest.yaml    ← version contract with LiteRealm and WorkRealm
 └── _TEMPLATE.md     ← format for new skills / gotchas
 ```
 
@@ -70,6 +70,22 @@ python ~/.agentbrain/scripts/sync_agents.py --project-root . --check   # CI / st
 ```
 
 Edit agents **here**, never in `.claude/agents/` (those files are overwritten on sync).
+
+### Namespaces, tiers and skills (WorkRealm)
+
+Agents for other kinds of work live in namespaces: `agents/kev/` (KEV-Ai-Architecture) and
+`agents/work/` (WorkRealm workspaces: `researcher`, `reviewer`, `decision_keeper`, `lab_runner`,
+`releaser`). An agent may declare `tiers: [task, project]`, and its own `tools:` restriction.
+
+```bash
+python ~/.agentbrain/scripts/sync_agents.py --project-root . --namespace work --tier task --prune
+python ~/.agentbrain/scripts/sync_skills.py --project-root . --tier task --prune
+```
+
+`--namespace a,b` reads several namespaces. `--prune` removes generated files whose source is
+gone, but never hand-written ones. A skill in `skills/` is synced into `.claude/skills/<name>/SKILL.md`
+only when it opts in with `tiers:`. WorkRealm's `wr sync` runs both scripts and stamps the brain
+version and commit into `.workrealm.json`.
 
 ---
 
@@ -128,7 +144,7 @@ Installs `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `
 
 ## 🔗 Version contract
 
-`manifest.yaml` declares the AgentBrain version (currently **2.1.0**, requires LiteRealm ≥ 2.0.0).
+`manifest.yaml` declares the AgentBrain version (currently **2.4.0**; requires LiteRealm ≥ 2.0.0 and WorkRealm ≥ 0.4.0).
 Bootstrap stamps that version + commit into each project's `project.yaml`
 (`agentbrain_version`), so every project records exactly which brain built it.
 

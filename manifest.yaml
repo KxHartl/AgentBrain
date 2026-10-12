@@ -1,14 +1,16 @@
-# AgentBrain Manifest — Version contract with LiteRealm projects.
-# LiteRealm bootstrap reads this to stamp version into project.yaml.
+# AgentBrain Manifest — Version contract with LiteRealm and WorkRealm projects.
+# LiteRealm bootstrap and `wr sync` read this to stamp the version into the project.
 
-version: "2.3.0"
+version: "2.4.0"
 min_literealm_version: "2.0.0"
+min_workrealm_version: "0.4.0"
 
 rag_backend: "qdrant+lancedb"   # Qdrant (QDRANT_URL) first, LanceDB fallback
 pdf_parser: "docling"
 
 scripts:
   sync_agents: "scripts/sync_agents.py"
+  sync_skills: "scripts/sync_skills.py"
   ingest: "scripts/rag/ingest.py"
   query: "scripts/rag/query.py"
   add_citation: "scripts/add_citation.py"
@@ -31,3 +33,18 @@ agents:
   - rag_indexer
   - data_engineer
   - defense_simulator
+
+# WorkRealm work agents: agents/work/, synced per tier with
+#   sync_agents.py --namespace work --tier <tier> --prune
+work_agents:
+  - researcher        # task, project
+  - reviewer          # task, project
+  - decision_keeper   # project
+  - lab_runner        # project
+  - releaser          # project
+
+# KEV-Ai-Architecture: agents/kev/, synced with --namespace kev
+kev_agents:
+  - adr_consolidator
+  - conformance_runner
+  - source_fetcher

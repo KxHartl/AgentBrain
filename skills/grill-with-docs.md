@@ -2,6 +2,7 @@
 domain: engineering
 type: skill
 author: mattpocock/skills
+tiers: [project]
 ---
 # Grill With Docs
 ## Context
