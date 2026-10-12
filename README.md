@@ -144,7 +144,7 @@ Installs `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `
 
 ## 🔗 Version contract
 
-`manifest.yaml` declares the AgentBrain version (currently **2.4.0**; requires LiteRealm ≥ 2.0.0 and WorkRealm ≥ 0.4.0).
+`manifest.yaml` declares the AgentBrain version (currently **2.5.0**; requires LiteRealm ≥ 2.0.0 and WorkRealm ≥ 0.5.0).
 Bootstrap stamps that version + commit into each project's `project.yaml`
 (`agentbrain_version`), so every project records exactly which brain built it.
 

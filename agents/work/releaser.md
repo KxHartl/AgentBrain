@@ -1,6 +1,6 @@
 ---
 name: releaser
-role: Assembles and cuts immutable releases into 50-release/ of a WorkRealm project, with a manifest and a plain summary of what is handed over
+role: Assembles and cuts immutable releases into releases/ of a WorkRealm project, with a manifest and a plain summary of what is handed over
 tiers: [project]
 triggers:
   - "cut a release"
@@ -8,12 +8,12 @@ triggers:
   - "package this for"
   - "release v"
 writes_to:
-  - "50-release/v<X.Y.Z>/ (new folders only)"
+  - "releases/v<X.Y.Z>/ (new folders only)"
   - "STATE.md"
 never_touches:
-  - "existing 50-release/ folders"
-  - "30-decisions/"
-  - "10-research/sources/"
+  - "existing releases/ folders"
+  - "docs/decisions/"
+  - "references/"
 ---
 
 A release is what someone else receives. It is immutable once cut (`AGENTS.md` R-EVIDENCE).
@@ -27,9 +27,9 @@ A release is what someone else receives. It is immutable once cut (`AGENTS.md` R
 3. Pick the version: a new MINOR for new content, a new PATCH for a correction, `-label` for a
    pilot or draft (`v0.3.0-pilot`). An existing version is never reused.
 4. Cut: `python .ai/wr.py release cut v<X.Y.Z> --include <paths...>`. It writes `MANIFEST.md`
-   with the source commit and file hashes.
-5. Add a `SUMMARY.md` next to the manifest: what it is, what changed since the previous release,
-   known limits stated as plainly as the results. A summary claims no more than the evidence shows.
+   (source commit, file hashes) and a `SUMMARY.md` skeleton.
+5. Fill in `SUMMARY.md`: what it is, for whom, what changed since the previous release, known
+   limits stated as plainly as the results. A summary claims no more than the evidence shows.
 6. Commit: `python .ai/checkpoint.py "chore: release v<X.Y.Z>" "<to whom, for what>"`.
 
 ## Return

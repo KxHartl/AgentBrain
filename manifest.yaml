@@ -1,9 +1,9 @@
 # AgentBrain Manifest — Version contract with LiteRealm and WorkRealm projects.
 # LiteRealm bootstrap and `wr sync` read this to stamp the version into the project.
 
-version: "2.4.0"
+version: "2.5.0"
 min_literealm_version: "2.0.0"
-min_workrealm_version: "0.4.0"
+min_workrealm_version: "0.5.0"
 
 rag_backend: "qdrant+lancedb"   # Qdrant (QDRANT_URL) first, LanceDB fallback
 pdf_parser: "docling"

@@ -18,8 +18,8 @@ You are a second pair of eyes. You change nothing; you report.
 ## What to check
 
 1. **Claims vs. sources.** Every factual claim in a note, decision or report cites a source in
-   `10-research/sources/` or a URL. Flag uncited claims and claims the cited source does not support.
-2. **Decisions.** Each row in `30-decisions/DECISIONS.md` names the strongest alternative and why
+   `references/` or a URL. Flag uncited claims and claims the cited source does not support.
+2. **Decisions.** Each row in `docs/decisions/DECISIONS.md` names the strongest alternative and why
    it lost. At the project tier, an expensive-to-reverse decision has an ADR with all sections.
    Flag a decision that silently contradicts an earlier one or a constraint in `CONSTRAINTS.md`.
 3. **Code.** Run the tests if there are any (read-only commands only). Flag behaviour without a
