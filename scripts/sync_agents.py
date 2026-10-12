@@ -10,6 +10,10 @@ delegate via the Task tool instead of doing specialist work in its own context.
 Usage:
     python ~/.agentbrain/scripts/sync_agents.py --project-root .
     python ~/.agentbrain/scripts/sync_agents.py --project-root . --check  # CI: no writes
+    python ~/.agentbrain/scripts/sync_agents.py --project-root . --namespace kev
+
+--namespace NAME reads ~/.agentbrain/agents/NAME/*.md instead of agents/*.md, so a
+project whose agents are not LiteRealm's (KEV) never receives the academic ones.
 
 Dependency-free (no PyYAML) — parses the same simple frontmatter that
 tests/lint-agents.py lints.
@@ -96,12 +100,15 @@ def main() -> int:
     ap.add_argument("--project-root", required=True, type=Path)
     ap.add_argument("--check", action="store_true",
                     help="verify outputs are up to date; write nothing")
+    ap.add_argument("--namespace", default=None,
+                    help="read agents/<namespace>/*.md instead of agents/*.md")
     args = ap.parse_args()
 
     out_dir = args.project_root / ".claude" / "agents"
-    sources = sorted((BRAIN / "agents").glob("*.md"))
+    src_dir = BRAIN / "agents" / args.namespace if args.namespace else BRAIN / "agents"
+    sources = sorted(src_dir.glob("*.md"))
     if not sources:
-        print("FAIL: no agent definitions in ~/.agentbrain/agents/")
+        print(f"FAIL: no agent definitions in {src_dir}")
         return 1
 
     stale = []

@@ -12,7 +12,8 @@ The work disk that held `~/.agentbrain` failed. Everything committed after `8983
 | `OLLAMA_EMBED_MODEL`, `RAG_STRICT_EMBED`, `QDRANT_*` in `ingest.py` / `query.py` | the thesis repo `.env.example` |
 | `agents/*.md` (8 agents incl. `data_engineer`, `defense_simulator`, staging gate) | the generated `.claude/agents/` mirrors (25 Aug); `sync_agents.py --check` round-trips clean |
 
-The Qdrant corpus itself lives on the homelab and survived (`agentbrain_corpus_8b`, 51,915 points).
+The Qdrant corpus itself lives on the homelab and survived (`agentbrain_corpus_8b`, 51,915 points).| `agents/kev/*.md` (`adr_consolidator`, `conformance_runner`, `source_fetcher`) — 2026-10-12 | the KEV repo's `.claude/agents/` mirrors; `sync_agents.py --check --namespace kev` round-trips clean |
+| `sync_agents.py --namespace` — 2026-10-12 | KEV AGENTS.md §8 calls it; without it a sync would hand KEV the LiteRealm agents |
 
 ## Still missing — referenced but not rebuilt
 
