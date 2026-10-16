@@ -15,9 +15,11 @@ The work disk that held `~/.agentbrain` failed. Everything committed after `8983
 The Qdrant corpus itself lives on the homelab and survived (`agentbrain_corpus_8b`, 51,915 points).| `agents/kev/*.md` (`adr_consolidator`, `conformance_runner`, `source_fetcher`) — 2026-10-12 | the KEV repo's `.claude/agents/` mirrors; `sync_agents.py --check --namespace kev` round-trips clean |
 | `sync_agents.py --namespace` — 2026-10-12 | KEV AGENTS.md §8 calls it; without it a sync would hand KEV the LiteRealm agents |
 
+| `scripts/rag/sync.py` — 2026-10-16 | rebuilt as a Qdrant → local LanceDB mirror (vectors copied, incremental); the original's exact behaviour is unknown |
+
 ## Still missing — referenced but not rebuilt
 
-- `scripts/rag/sync.py`, `scripts/rag/classify_source.py` (called by `rag.ps1 sync|classify`)
+- `scripts/rag/classify_source.py` (called by `rag.ps1 classify`; what it did is not recorded)
 - `scripts/thesis_dashboard.py` (called by `thesis.ps1`)
 - `style/author_profile.yaml`, `style/samples/` (read by the `writer` agent)
 - Whatever was in `gotchas/`, `skills/`, `prompts/` and `templates/` after June

@@ -23,6 +23,7 @@ if [[ "$USE_UV" -eq 1 ]]; then
     uv pip install --python "$PYBIN" --upgrade pip
     uv pip install --python "$PYBIN" -q \
         python-dotenv \
+        mcp \
         docling \
         lancedb \
         pypdf \
@@ -37,6 +38,7 @@ else
     "$PYBIN" -m pip install --upgrade pip
     "$PYBIN" -m pip install -q \
         python-dotenv \
+        mcp \
         docling \
         lancedb \
         pypdf \

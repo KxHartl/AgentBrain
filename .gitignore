@@ -6,6 +6,10 @@ __pycache__/
 # Local project DBs live in <project>/.ai/rag/db/, never inside the brain.
 rag/db/
 rag/local_dbs/
+rag/mirror/
+
+# Machine settings (QDRANT_URL, RAG_MCP_TOKEN...) -- never commit.
+.env
 
 # Global source PDFs are data, not logic; keep them out of the brain repo.
 # Small PDFs needed by the test suite go under tests/fixtures/ instead.

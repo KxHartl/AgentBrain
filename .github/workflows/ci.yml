@@ -23,19 +23,22 @@ jobs:
           python-version: '3.11'
 
       - name: Install RAG deps (lightweight — no Docling)
-        run: pip install --quiet lancedb sentence-transformers pypdf python-dotenv
+        run: pip install --quiet lancedb sentence-transformers pypdf python-dotenv mcp
 
       - name: Lint agent frontmatter
         run: python tests/lint-agents.py
 
       - name: Byte-compile scripts
-        run: python -m py_compile scripts/render_template.py scripts/add_citation.py scripts/rag/ingest.py scripts/rag/query.py scripts/sync_agents.py scripts/sync_skills.py
+        run: python -m py_compile scripts/render_template.py scripts/add_citation.py scripts/rag/ingest.py scripts/rag/query.py scripts/rag/corpus.py scripts/rag/sync.py scripts/rag/mcp_server.py scripts/sync_agents.py scripts/sync_skills.py
 
       - name: Agent and skill sync (tiers, namespaces, prune)
         run: python tests/test_sync.py
 
       - name: Compile every LaTeX template (Croatian glyphs + bold)
         run: bash tests/compile-template.sh
+
+      - name: RAG corpus, mirror and MCP server (fake Qdrant/Ollama)
+        run: python tests/test_rag_mcp.py
 
       - name: RAG roundtrip (ingest -> query, local embeddings)
         run: bash tests/rag-roundtrip.sh

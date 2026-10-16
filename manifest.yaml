@@ -1,7 +1,7 @@
 # AgentBrain Manifest — Version contract with LiteRealm and WorkRealm projects.
 # LiteRealm bootstrap and `wr sync` read this to stamp the version into the project.
 
-version: "2.5.0"
+version: "2.6.0"
 min_literealm_version: "2.0.0"
 min_workrealm_version: "0.5.0"
 
@@ -13,6 +13,8 @@ scripts:
   sync_skills: "scripts/sync_skills.py"
   ingest: "scripts/rag/ingest.py"
   query: "scripts/rag/query.py"
+  rag_mcp_server: "scripts/rag/mcp_server.py"   # stdio, or --http with RAG_MCP_TOKEN
+  rag_sync: "scripts/rag/sync.py"              # server corpus -> local mirror
   add_citation: "scripts/add_citation.py"
   setup_env_sh: "scripts/setup_env.sh"
   setup_env_ps1: "scripts/setup_env.ps1"

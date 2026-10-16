@@ -124,6 +124,34 @@ python ~/.agentbrain/scripts/add_citation.py --doi "10.1109/TRO.2024.1234567"
 **Embeddings** use Gemini cloud when `GEMINI_API_KEY` is present in the project's `.env`,
 otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`). No configuration switch — it adapts.
 
+### The shared corpus as MCP tools (2.6.0)
+
+The main corpus lives in Qdrant (`QDRANT_URL`); this machine embeds queries and new
+documents with the model that built it (`OLLAMA_EMBED_MODEL`, default `qwen3-embedding:8b`),
+so the server only stores vectors. `scripts/rag/mcp_server.py` exposes it as three tools:
+
+| Tool | Does |
+|---|---|
+| `rag_search` | top-k excerpts with `source_file`, `page`, score; filters `source`, `domain`, `project` |
+| `rag_status` | server, embedding model and mirror health; flags a model/corpus dimension mismatch |
+| `rag_ingest` | Docling-parses a folder's PDFs, embeds here, upserts into Qdrant (stable ids) |
+
+```bash
+# stdio: what a project's .mcp.json starts; rag_ingest may read only that project folder
+python ~/.agentbrain/scripts/rag/mcp_server.py
+
+# HTTP: one server on this machine for other devices; token required, ingest off by default
+RAG_MCP_TOKEN=... python ~/.agentbrain/scripts/rag/mcp_server.py --http --host 0.0.0.0     --allowed-hosts laptop.lan:8765
+
+# Offline copy: mirror the server corpus (vectors included, nothing re-embedded)
+python ~/.agentbrain/scripts/rag/sync.py          # --check reports the difference only
+```
+
+When Qdrant is unreachable, `rag_search` answers from the mirror (`origin: "mirror"`).
+Settings go in `~/.agentbrain/.env` (ignored by git): `QDRANT_URL`, `QDRANT_COLLECTION`,
+`OLLAMA_EMBED_MODEL`, `RAG_STRICT_EMBED=1`, and for HTTP `RAG_MCP_TOKEN`; `RAG_INGEST_ROOTS`
+widens or (in HTTP mode) enables ingest.
+
 ### Setting up the env
 
 You normally don't — it's automatic. LiteRealm bootstrap builds `~/.agentbrain/.venv` on
