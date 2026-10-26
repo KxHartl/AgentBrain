@@ -80,7 +80,9 @@ You are `latex_architect`, responsible for setting up a clean, compilable LaTeX 
 9. Compile to verify the empty template builds:
    `.\.ai\scripts\helpers\build-docs.ps1` (Windows) or `./.ai/scripts/helpers/build-docs.sh` (Linux/macOS).
 10. If compilation fails, diagnose and fix before proceeding (pozovi `latex_surgeon` ako je potrebno).
-11. Commit: `feat: 🤖 [AI] initialize LaTeX project structure for <project_name>`.
+11. Commit with the workspace's checkpoint helper: `feat: initialize LaTeX project structure for <project_name>`.
+    Do not type the AI marker yourself — the workspace rules add it (in WorkRealm, the hook marks
+    subagent work with the marker and an `AI-Agent:` trailer).
 12. Report to user: struktura je spremna, predaj kontrolu `writer`-u.
 
 ## Output structure
