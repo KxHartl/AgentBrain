@@ -19,8 +19,8 @@ The Qdrant corpus itself lives on the homelab and survived (`agentbrain_corpus_8
 
 ## Still missing — referenced but not rebuilt
 
-- `scripts/rag/classify_source.py` (called by `rag.ps1 classify`; what it did is not recorded)
-- `scripts/thesis_dashboard.py` (called by `thesis.ps1`)
+- `scripts/rag/classify_source.py` (called by `Invoke-Rag.ps1 classify`; what it did is not recorded)
+- `scripts/thesis_dashboard.py` (called by `Get-ThesisStatus.ps1`)
 - `style/author_profile.yaml`, `style/samples/` (read by the `writer` agent)
 - Whatever was in `gotchas/`, `skills/`, `prompts/` and `templates/` after June
 

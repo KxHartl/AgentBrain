@@ -78,7 +78,7 @@ You are `latex_architect`, responsible for setting up a clean, compilable LaTeX 
    Sadržajni placeholderi (npr. `{{UVOD}}`, `{{LITERATURA}}`, `{{SAZETAK_TEKST}}`) ostaju —
    njih popunjava `writer`, ne `latex_architect`.
 9. Compile to verify the empty template builds:
-   `.\.ai\scripts\helpers\build-docs.ps1` (Windows) or `./.ai/scripts/helpers/build-docs.sh` (Linux/macOS).
+   `.\.ai\scripts\helpers\Build-Docs.ps1` (Windows) or `./.ai/scripts/helpers/build-docs.sh` (Linux/macOS).
 10. If compilation fails, diagnose and fix before proceeding (pozovi `latex_surgeon` ako je potrebno).
 11. Commit with the workspace's checkpoint helper: `feat: initialize LaTeX project structure for <project_name>`.
     Do not type the AI marker yourself — the workspace rules add it (in WorkRealm, the hook marks

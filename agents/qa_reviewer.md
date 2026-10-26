@@ -58,7 +58,7 @@ You are `qa_reviewer`, an ultra-strict academic and technical reviewer. Your job
 - [ ] Formal Croatian academic register (no colloquialisms)
 - [ ] Grammar and spelling (Croatian)
 - [ ] Consistent terminology throughout (aligned with `~/.agentbrain/style/author_profile.yaml`)
-- [ ] **Run Style Linter**: `.\.ai\scripts\helpers\style.ps1 check docs/chapters/<file>.tex` (Human Style Score > 75)
+- [ ] **Run Style Linter**: `.\.ai\scripts\helpers\Invoke-Style.ps1 check docs/chapters/<file>.tex` (Human Style Score > 75)
 - [ ] **No forbidden AI cliches** (e.g. "ključno je napomenuti", "u današnje vrijeme", "sveobuhvatna analiza")
 - [ ] Sentence length variation (Burstiness) is healthy and natural (no monotonous AI rhythm)
 - [ ] No first-person unless the template explicitly allows it
