@@ -221,3 +221,7 @@ author: [your-id or AI]
 ```
 
 Agents are encouraged to update this brain themselves when they discover a new gotcha or workflow.
+
+## License
+
+[Apache-2.0](LICENSE). It covers the author's own work in this repository. Third-party parts keep their own licences.
