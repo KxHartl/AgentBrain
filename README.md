@@ -1,26 +1,50 @@
 # AgentBrain
 
-> The shared **brain** behind every [LiteRealm](https://github.com/KxHartl/LiteRealm) project —
-> LaTeX templates, AI agent definitions, RAG scripts and hard-won gotchas, installed once per machine.
+> The shared **brain** behind every [WorkRealm](https://github.com/KxHartl/WorkRealm) workspace and
+> [LiteRealm](https://github.com/KxHartl/LiteRealm) project: AI agent definitions, skills, LaTeX
+> templates, RAG scripts and hard-won gotchas, installed once per machine.
 
-[![LiteRealm template](https://img.shields.io/badge/works%20with-LiteRealm-6f42c1)](https://github.com/KxHartl/LiteRealm)
-[![RAG · Docling + LanceDB](https://img.shields.io/badge/RAG-Docling%20%2B%20LanceDB-008080)](https://docling-project.github.io/docling/)
+![Version](https://img.shields.io/badge/version-2.6.0-6f42c1)
+[![Works with](https://img.shields.io/badge/works%20with-WorkRealm%20%C2%B7%20LiteRealm-6f42c1)](https://github.com/KxHartl/WorkRealm)
+[![RAG · Docling + Qdrant + LanceDB](https://img.shields.io/badge/RAG-Docling%20%2B%20Qdrant%20%2B%20LanceDB-008080)](https://docling-project.github.io/docling/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB)](https://www.python.org/)
-
-AgentBrain lives at `~/.agentbrain`. You never clone it by hand — the first LiteRealm project
-you bootstrap clones it for you. One brain serves all your projects; each project stays tiny.
-
-```
-   ┌─────────────────────────┐         ┌──────────────────────────────┐
-   │  LiteRealm  (a project)  │         │  AgentBrain  (this — shared)  │
-   │  · your text, data, PDFs │ ◀────▶  │  · templates · agents         │
-   │  · config + state        │  uses   │  · RAG scripts · gotchas      │
-   └─────────────────────────┘         └──────────────────────────────┘
-```
 
 ---
 
-## 📂 Layout
+## The problem
+
+Every project that works with AI agents needs the same things: specialists with clear limits,
+reusable workflows, document templates, a way to search and cite sources, and the lessons learned
+the hard way. Copied into each project, they drift apart, and a fix made in one project never
+reaches the others.
+
+AgentBrain keeps them in **one place per machine**. Projects stay small and sync what they need for
+their size. A gotcha written down once is found by every project after it.
+
+```
+   ┌─────────────────────────┐         ┌──────────────────────────────┐
+   │  WorkRealm / LiteRealm   │         │  AgentBrain  (this — shared)  │
+   │  · one per project       │ ◀────▶  │  · agents · skills            │
+   │  · your text, data, PDFs │  syncs  │  · templates · RAG scripts    │
+   │  · config + state        │         │  · gotchas                    │
+   └─────────────────────────┘         └──────────────────────────────┘
+```
+
+AgentBrain lives at `~/.agentbrain`. You never clone it by hand: the first LiteRealm project you
+bootstrap, or WorkRealm's `wr sync`, sets it up for you.
+
+## Status
+
+| | |
+| --- | --- |
+| Version | **2.6.0** (`manifest.yaml`), requires LiteRealm 2.0.0 and WorkRealm 0.5.0 or newer |
+| Content | 16 agents in three namespaces, 7 skills, 4 gotchas, 5 FSB LaTeX templates |
+| RAG | Shared corpus in Qdrant with a local LanceDB mirror, exposed to agents as MCP tools |
+| Tests | Agent lint, sync tests, RAG MCP tests, RAG round trip and template compile scripts in `tests/` |
+
+---
+
+## Layout
 
 ```
 ~/.agentbrain/
@@ -42,9 +66,9 @@ you bootstrap clones it for you. One brain serves all your projects; each projec
 
 ---
 
-## 🤖 Agents
+## Agents
 
-Six specialists in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
+Eight specialists for academic work in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
 **writes_to** (allowed directories) and **never_touches** (hard limits).
 
 | Agent | Role | Key restriction |
@@ -55,6 +79,8 @@ Six specialists in `agents/`. Each declares its **role**, **triggers** (phrases 
 | `qa_reviewer` | Review & critique | **Read-only** — only writes `docs/REVIEW.md` |
 | `latex_surgeon` | Fix compile errors | Touches compilation only, never content |
 | `rag_indexer` | Maintain the vector database | `data/sources/` is read-only for it |
+| `data_engineer` | Research data, experiment tracking, tables and plots | Never touches the thesis text (`main.tex`, `chapters/`) |
+| `defense_simulator` | Thesis defence drill with committee-style questions | Only writes `docs/DEFENSE_PREP.md` |
 
 **Pipeline:** `latex_architect → data_fetcher → writer → qa_reviewer → latex_surgeon → rag_indexer`
 
@@ -89,7 +115,7 @@ version and commit into `.workrealm.json`.
 
 ---
 
-## 📐 Templates
+## Templates
 
 | Template | Folder | Format |
 |---|---|---|
@@ -104,7 +130,7 @@ and `structure.md` (document skeleton). See `templates/README.md`.
 
 ---
 
-## 📚 RAG — always on
+## RAG — always on
 
 RAG isn't optional and isn't per-project: the scripts and their Python deps live **once** here in
 `~/.agentbrain/.venv`, and every LiteRealm project uses them directly.
@@ -170,15 +196,15 @@ Installs `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `
 
 ---
 
-## 🔗 Version contract
+## Version contract
 
-`manifest.yaml` declares the AgentBrain version (currently **2.5.0**; requires LiteRealm ≥ 2.0.0 and WorkRealm ≥ 0.5.0).
+`manifest.yaml` declares the AgentBrain version (currently **2.6.0**; requires LiteRealm ≥ 2.0.0 and WorkRealm ≥ 0.5.0).
 Bootstrap stamps that version + commit into each project's `project.yaml`
 (`agentbrain_version`), so every project records exactly which brain built it.
 
 ---
 
-## ➕ Adding knowledge
+## Adding knowledge
 
 New `skills/`, `gotchas/` and `prompts/` follow `_TEMPLATE.md`:
 
