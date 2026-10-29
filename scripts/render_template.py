@@ -19,12 +19,16 @@ Usage:
     # template compiles (used by tests/compile-template.*)
     python ~/.agentbrain/scripts/render_template.py --project-root . --scaffold --fill-stubs
 
+Formats that ship `assets/` or `fonts/` (e.g. kev-report: logo + Carlito/DejaVu)
+get them copied to docs/figures/ and docs/fonts/ on --scaffold.
+
 Exit codes: 0 ok, 1 usage/IO error, 2 validation error (missing required fields).
 """
 
 import argparse
 import datetime
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -85,7 +89,12 @@ def resolve_template(fmt: str) -> Path:
     return tex_files[0]
 
 
-def build_substitutions(cfg: dict) -> dict:
+def tex_escape(value: str) -> str:
+    """Escape the LaTeX specials that plausibly occur in file names / doc numbers."""
+    return re.sub(r"([_&%#$])", r"\\\1", value)
+
+
+def build_substitutions(cfg: dict, out_name: str = "main.tex") -> dict:
     """Map metadata placeholders -> values, with the documented fallbacks."""
     year = str(datetime.date.today().year)
     title = cfg.get("seminar_title") or cfg.get("name") or ""
@@ -120,7 +129,37 @@ def build_substitutions(cfg: dict) -> dict:
         "LISTOFFIGURES": lof,
         "LISTOFTABLES": lot,
         "CHAPTER_INPUTS": "",
+        # kev-report (KONČAR – Električna vozila) title block; all keys optional.
+        "KEV_ODJEL": cfg.get("kev_department") or "TEHNIKA",
+        "KEV_BROJ_DOKUMENTA": tex_escape(cfg.get("kev_doc_number", "")),
+        "KEV_IZDANJE": cfg.get("kev_issue") or "A",
+        "KEV_DATUM": cfg.get("kev_date")
+        or datetime.date.today().strftime("%d.%m.%Y."),
+        "KEV_PREGLEDAO": cfg.get("kev_reviewed_by", ""),
+        "KEV_ODOBRIO": cfg.get("kev_approved_by", ""),
+        "KEV_DATOTEKA": tex_escape(
+            cfg.get("kev_file_name") or Path(out_name).with_suffix(".pdf").name
+        ),
+        "KEV_IZRADIO": cfg.get("kev_author") or author,
+        "KEV_SECTION_NEWPAGE": "true"
+        if as_bool(cfg.get("kev_section_newpage")) else "false",
     }
+
+
+def copy_format_assets(fmt_dir: Path, docs: Path) -> None:
+    """Copy a format's assets/ -> docs/figures/ and fonts/ -> docs/fonts/.
+
+    Existing files are left alone so a project can override a logo or font.
+    """
+    for src_name, dst_name in (("assets", "figures"), ("fonts", "fonts")):
+        src = fmt_dir / src_name
+        if not src.is_dir():
+            continue
+        dst = docs / dst_name
+        dst.mkdir(parents=True, exist_ok=True)
+        for f in sorted(src.iterdir()):
+            if f.is_file() and not (dst / f.name).exists():
+                shutil.copy2(f, dst / f.name)
 
 
 def scaffold(docs: Path, rendered: str) -> None:
@@ -194,7 +233,7 @@ def main() -> int:
         return 1
 
     text = master.read_text(encoding="utf-8")
-    subs = build_substitutions(cfg)
+    subs = build_substitutions(cfg, out_path.name)
     text = PLACEHOLDER_RE.sub(lambda m: subs.get(m.group(1), m.group(0)), text)
 
     if args.fill_stubs:
@@ -207,6 +246,7 @@ def main() -> int:
     print(f"Rendered {fmt} ({master.name}) -> {out_path}")
 
     if args.scaffold:
+        copy_format_assets(master.parent.parent, out_path.parent)
         scaffold(out_path.parent, text)
         print(f"Scaffolded chapter stubs / references.bib / dirs in {out_path.parent}")
 

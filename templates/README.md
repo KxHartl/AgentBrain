@@ -1,6 +1,6 @@
 # LaTeX Predlošci
 
-Tri akademska predloška za FSB (Fakultet strojarstva i brodogradnje), Sveučilište u Zagrebu.
+Akademski predlošci za FSB (Fakultet strojarstva i brodogradnje), Sveučilište u Zagrebu, i korporativni predložak KONČAR – Električna vozila (KEV).
 
 ## Dostupni predlošci
 
@@ -24,7 +24,8 @@ predložak/
 ├── latex/          # LaTeX source files (.tex)
 ├── demo.pdf        # compiled example
 ├── instructions.md # AI agent instructions for this format
-└── structure.md    # document skeleton
+├── structure.md    # document skeleton
+├── assets/         # (opcijski) slike → docs/figures/ pri --scaffold (npr. kev_logo.png)
 ```
 
 > `word/` directories exist in some templates as legacy reference only. Agents **never** use Word files — LaTeX only.
