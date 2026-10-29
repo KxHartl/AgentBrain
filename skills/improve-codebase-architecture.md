@@ -2,6 +2,7 @@
 domain: engineering
 type: skill
 author: mattpocock/skills
+tiers: [project]
 ---
 # Improve Codebase Architecture
 ## Context

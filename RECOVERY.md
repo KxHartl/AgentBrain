@@ -12,6 +12,11 @@ The work disk that held `~/.agentbrain` failed. Everything committed after `8983
 | `OLLAMA_EMBED_MODEL`, `RAG_STRICT_EMBED`, `QDRANT_*` in `ingest.py` / `query.py` | the thesis repo `.env.example` |
 | `agents/*.md` (8 agents incl. `data_engineer`, `defense_simulator`, staging gate) | the generated `.claude/agents/` mirrors (25 Aug); `sync_agents.py --check` round-trips clean |
 
+| `agents/kev/*.md` (`adr_consolidator`, `conformance_runner`, `source_fetcher`) — 2026-10-12 | the KEV repo's `.claude/agents/` mirrors; `sync_agents.py --check --namespace kev` round-trips clean |
+| `sync_agents.py --namespace` — 2026-10-12 | KEV AGENTS.md §8 calls it; without it a sync would hand KEV the LiteRealm agents |
+
+| `scripts/rag/sync.py` — 2026-10-16 | rebuilt as a Qdrant → local LanceDB mirror (vectors copied, incremental); the original's exact behaviour is unknown |
+
 The Qdrant corpus itself lives on the homelab and survived (`agentbrain_corpus_8b`, 51,915 points).
 
 ## Rebuilt (v2.4.0, 29 Sep) — from the interfaces that still call them
@@ -22,7 +27,7 @@ Behaviour may differ in detail from the lost versions; each is covered by `tests
 
 | Item | Contract it satisfies |
 |---|---|
-| `scripts/rag/sync.py` | `rag sync` — incremental, recursive; Qdrant points tagged by project, `--prune` only deletes those |
+| `scripts/rag/sync_sources.py` | `rag sync` (renamed: `sync.py` is now the corpus mirror) — incremental, recursive; Qdrant points tagged by project, `--prune` only deletes those |
 | `scripts/rag/classify_source.py` | `rag classify` — category for `data/staging/<category>/` |
 | `scripts/thesis_dashboard.py` | `thesis status\|audit --project-root .` |
 | `scripts/data/experiment_manager.py` | `experiment new\|process\|list\|audit` and the `data_engineer` agent |

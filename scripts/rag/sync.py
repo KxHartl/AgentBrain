@@ -1,216 +1,118 @@
-"""
-LiteRealm RAG — incremental sync of data/sources/ into the vector store.
+"""Mirror the server corpus (Qdrant) into a local LanceDB copy, vectors included.
 
-Unlike `ingest` (full rebuild of the top-level PDFs), sync walks data/sources/**
-recursively, hashes every PDF and only parses + embeds files that are new or changed
-since the last sync. State lives in <store dir>/sync_state.json.
+The mirror is what `corpus.search` falls back to when the server cannot be reached. It
+copies the stored vectors, so nothing is re-embedded and results match the server's.
+Incremental: only points the mirror lacks are downloaded, and points the server no
+longer has are deleted.
 
-    rag.sh sync                 # index new/changed PDFs (Docling)
-    rag.sh sync --fast          # pypdf instead of Docling (quick, no layout)
-    rag.sh sync --dry-run       # show the plan, change nothing
-    rag.sh sync --full          # re-index everything (e.g. after changing the embedding model)
-    rag.sh sync --prune         # Qdrant: also delete points of removed/changed files
+    python ~/.agentbrain/scripts/rag/sync.py            # bring the mirror up to date
+    python ~/.agentbrain/scripts/rag/sync.py --check    # report the difference, change nothing
 
-Backends (store_adapter.get_vector_store): Qdrant when QDRANT_URL answers, else LanceDB.
-LanceDB is per project, so changed/removed files are always replaced there. The Qdrant
-collection is shared: points are tagged with `project`, and deletions (--prune) only
-ever touch points carrying this project's tag. Without --prune a changed file's old
-chunks stay until pruned (upserts are idempotent, so unchanged chunks are not duplicated).
-
-The chunk `domain` is the first folder under data/sources/ (standards/, papers/, ...),
-or "general" for top-level files.
-
-Rebuilt 2026-09 from the interface the LiteRealm rag helper calls (`rag sync`); the
-original was lost with the work disk (see RECOVERY.md).
+Rebuilt 2026-10-16; the original was lost with the September disk failure.
 """
 
 import argparse
-import collections
-import datetime as dt
-import hashlib
+import datetime
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from rag_paths import enable_utf8_io, resolve_store_dir  # noqa: E402
+import corpus  # noqa: E402
+from rag_paths import enable_utf8_io  # noqa: E402
+from store_adapter import _http  # noqa: E402
 
-STATE_NAME = "sync_state.json"
-
-
-def sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for block in iter(lambda: f.read(1 << 20), b""):
-            h.update(block)
-    return h.hexdigest()
+PAGE = 1000   # ids per scroll page (no vectors: cheap)
+FETCH = 64    # points per vector download (4096 floats each)
 
 
-def domain_of(rel):
-    parts = Path(rel).parts
-    return parts[0] if len(parts) > 1 else "general"
+def server_ids(store):
+    ids, offset = [], None
+    while True:
+        body = {"limit": PAGE, "with_payload": False, "with_vector": False}
+        if offset is not None:
+            body["offset"] = offset
+        res = _http("POST", f"{store.url}/collections/{store.collection}/points/scroll",
+                    body, timeout=store.timeout)["result"]
+        ids.extend(str(p["id"]) for p in res["points"])
+        offset = res.get("next_page_offset")
+        if offset is None:
+            return ids
 
 
-def scan(sources):
-    return {p.relative_to(sources).as_posix(): p for p in sorted(sources.rglob("*.pdf")) if p.is_file()}
+def fetch(store, ids):
+    res = _http("POST", f"{store.url}/collections/{store.collection}/points",
+                {"ids": ids, "with_payload": True, "with_vector": True},
+                timeout=store.timeout)["result"]
+    return [{"id": str(p["id"]), "vector": p["vector"],
+             **{f: str(p["payload"].get(f, "")) for f in corpus.PAYLOAD_FIELDS},
+             "_model": p["payload"].get("model_id", "")} for p in res]
 
 
-def load_state(path):
-    if path.exists():
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            print(f"  {path.name} unreadable - treating as a first sync.")
-    return {}
+def schema(dim):
+    import pyarrow as pa
+    return pa.schema([("id", pa.string()), ("vector", pa.list_(pa.float32(), dim))]
+                     + [(f, pa.string()) for f in corpus.PAYLOAD_FIELDS])
 
 
-def plan(files, state, full):
-    known = {} if full else state.get("files", {})
-    new, changed, unchanged = [], [], []
-    hashes = {}
-    for rel, path in files.items():
-        hashes[rel] = sha256(path)
-        if rel not in known:
-            new.append(rel)
-        elif known[rel].get("sha256") != hashes[rel]:
-            changed.append(rel)
+def sync(check=False, out=print):
+    corpus.configure()
+    store = corpus.qdrant()
+    if store is None:
+        raise corpus.CorpusError("QDRANT_URL is not set.")
+    import lancedb
+    dim = store.dim()
+    remote = set(server_ids(store))
+    path = corpus.mirror_dir()
+    db = lancedb.connect(str(path)) if not check or path.exists() else None
+    table = (db.open_table(corpus.MIRROR_TABLE)
+             if db is not None and corpus.has_table(db, corpus.MIRROR_TABLE) else None)
+    if table is not None and table.schema.field("vector").type.list_size != dim:
+        raise corpus.CorpusError(f"Mirror at {path} is not {dim}-dim; delete it and sync again.")
+    local = set(table.to_arrow().column("id").to_pylist()) if table is not None else set()
+    new, gone = sorted(remote - local), sorted(local - remote)
+    out(f"{store.collection}: server {len(remote)}, mirror {len(local)}, "
+        f"to download {len(new)}, to delete {len(gone)}")
+    if check:
+        return {"server": len(remote), "mirror": len(local), "new": len(new), "gone": len(gone)}
+
+    path.mkdir(parents=True, exist_ok=True)
+    model = ""
+    for i in range(0, len(new), FETCH):
+        rows = fetch(store, new[i:i + FETCH])
+        model = model or next((r["_model"] for r in rows if r["_model"]), "")
+        for r in rows:
+            del r["_model"]
+        if table is None:
+            table = db.create_table(corpus.MIRROR_TABLE, data=rows, schema=schema(dim))
         else:
-            unchanged.append(rel)
-    removed = sorted(set(state.get("files", {})) - set(files))
-    return new, changed, unchanged, removed, hashes
+            table.add(rows)
+        done = min(i + FETCH, len(new))
+        if done % (FETCH * 50) == 0 or done == len(new):
+            out(f"  downloaded {done}/{len(new)}", flush=True)
+    for i in range(0, len(gone), 500):
+        ids = ", ".join("'" + x + "'" for x in gone[i:i + 500])
+        table.delete(f"id IN ({ids})")
+    old = corpus.mirror_meta() or {}
+    meta = {"collection": store.collection, "server": store.url, "dim": dim,
+            "points": table.count_rows() if table is not None else 0,
+            "model": model or old.get("model", ""),
+            "synced_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
+    (path / "mirror.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    out(f"Mirror at {path}: {meta['points']} points.")
+    return meta
 
 
-def parse(paths, fast, ocr, sources):
-    import ingest as base
-    if fast:
-        chunks = []
-        for p in paths:
-            print(f"  Parsing: {p.name} (pypdf)...")
-            chunks.extend(base._fallback_parse(p))
-        return chunks
-    return base.parse_with_docling(sources, enable_ocr=ocr, pdf_files=paths)
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description="Incremental RAG sync of data/sources/**.")
-    parser.add_argument("--project-root", default=".")
-    parser.add_argument("--fast", action="store_true", help="pypdf parsing instead of Docling")
-    parser.add_argument("--ocr", action="store_true", help="full-page OCR for scanned PDFs (Docling)")
-    parser.add_argument("--dry-run", action="store_true", help="print the plan only")
-    parser.add_argument("--full", action="store_true", help="re-index every file")
-    parser.add_argument("--prune", action="store_true",
-                        help="Qdrant: delete this project's points of changed/removed files")
-    args = parser.parse_args(argv)
-
-    root = Path(args.project_root).resolve()
-    os.chdir(root)  # store_adapter/ingest resolve the project from the cwd
-    sources = root / "data" / "sources"
-    if not sources.is_dir():
-        print(f"No sources directory at {sources}")
-        return 1
-
-    from store_adapter import QdrantStore, get_vector_store
-    store = get_vector_store(root)
-    is_qdrant = isinstance(store, QdrantStore)
-    backend = f"qdrant:{store.collection}" if is_qdrant else "lancedb"
-    state_dir = resolve_store_dir(root / ".ai" / "rag" / "db", project_root=root)
-    state_path = state_dir / STATE_NAME
-    state = load_state(state_path)
-
-    full = args.full
-    if state and state.get("backend") != backend:
-        print(f"  Backend changed ({state.get('backend')} -> {backend}): full sync.")
-        full = True
-    if not state and not is_qdrant:
-        full = True  # no record of what the LanceDB table holds (e.g. built by `rag ingest`)
-
-    files = scan(sources)
-    new, changed, unchanged, removed, hashes = plan(files, state, full)
-    names = collections.Counter(Path(r).name for r in files)
-    dupes = sorted(n for n, c in names.items() if c > 1)
-    if dupes:
-        print(f"  WARNING: same file name in several folders (cite keys map by name): {', '.join(dupes)}")
-
-    print(f"Sync plan ({backend}{', full' if full else ''}): {len(new)} new, {len(changed)} changed, "
-          f"{len(removed)} removed, {len(unchanged)} unchanged")
-    for label, items in (("new", new), ("changed", changed), ("removed", removed)):
-        for rel in items:
-            print(f"  {label:<8} {rel}")
-    if args.dry_run:
-        return 0
-    todo = new + changed
-    if not todo and not removed and not full:
-        print("Nothing to do.")
-        return 0
-
-    import ingest as base
-    project = root.name
-    embed_fn = dim = model_id = None
-    if todo:
-        embed_fn, dim, model_id = base.load_embeddings()
-        if state.get("model_id") and state["model_id"] != model_id and not full:
-            print(f"Embedding model changed ({state['model_id']} -> {model_id}); "
-                  f"vectors would not be comparable. Run: rag sync --full")
-            return 1
-
-    # Remove what is gone or about to be replaced.
-    stale = [Path(r).name for r in changed + removed]
-    if is_qdrant:
-        if args.prune and stale:
-            store.delete_sources(stale, project)
-            print(f"  Pruned this project's points for {len(stale)} file(s).")
-        elif stale:
-            print(f"  {len(stale)} changed/removed file(s) keep their old points; --prune removes them.")
-    elif full:
-        store.drop()
-    elif stale:
-        store.delete_sources(stale)
-
-    files_state = {} if full else dict(state.get("files", {}))
-    for rel in removed:
-        files_state.pop(rel, None)
-
-    total = 0
-    for rel in todo:
-        chunks = parse([files[rel]], args.fast, args.ocr, sources)
-        if not chunks:
-            print(f"  {rel}: no text extracted - skipped (scanned? try --ocr)")
-            continue
-        vectors = []
-        texts = [c["text"] for c in chunks]
-        for i in range(0, len(texts), 64):
-            vectors.extend(embed_fn(texts[i:i + 64]))
-        domain = domain_of(rel)
-        if is_qdrant:
-            for c, v in zip(chunks, vectors):
-                c["vector"], c["domain"] = v, domain
-            n = store.upsert_chunks(chunks, model_id=model_id, dim=dim, scope="local",
-                                    domain=domain, project=project)
-        else:
-            # Same schema as `rag ingest`, so query.py reads both.
-            n = store.append_chunks([{"text": c["text"], "source_file": c["source_file"],
-                                      "page": c["page"], "headings": c.get("headings", ""),
-                                      "vector": v} for c, v in zip(chunks, vectors)])
-        files_state[rel] = {"sha256": hashes[rel], "chunks": n, "domain": domain}
-        total += n
-        print(f"  indexed  {rel}  ({n} chunks, domain {domain})")
-
-    state_dir.mkdir(parents=True, exist_ok=True)
-    new_state = {"backend": backend, "model_id": model_id or state.get("model_id"),
-                 "dim": dim or state.get("dim"), "updated": dt.datetime.now().isoformat(timespec="seconds"),
-                 "files": files_state}
-    state_path.write_text(json.dumps(new_state, indent=2, ensure_ascii=False), encoding="utf-8")
-    if not is_qdrant and new_state["model_id"]:
-        (state_dir / "embedding_meta.json").write_text(
-            json.dumps({"model": new_state["model_id"], "dim": new_state["dim"], "table": "project_docs"},
-                       indent=2), encoding="utf-8")
-    print(f"Done. {total} chunk(s) from {len(todo)} file(s); {len(files_state)} file(s) tracked in {state_path}")
-    return 0
+def main():
+    enable_utf8_io()
+    p = argparse.ArgumentParser(description="Mirror the Qdrant corpus into local LanceDB.")
+    p.add_argument("--check", action="store_true", help="Report the difference only.")
+    args = p.parse_args()
+    try:
+        sync(check=args.check)
+    except corpus.CorpusError as e:
+        sys.exit(f"sync: {e}")
 
 
 if __name__ == "__main__":
-    enable_utf8_io()
-    import ingest as _base  # noqa: E402
-    _base.ensure_brain_venv()
-    sys.exit(main())
+    main()

@@ -46,10 +46,10 @@ echo "--- sync (incremental, nested sources) ---"
 rm -rf "$tmp/.ai/rag/db"
 mkdir -p "$tmp/data/sources/papers"
 mv "$tmp/data/sources/bitcoin.pdf" "$tmp/data/sources/papers/"
-if ! "$PY" "$BRAIN_ROOT/scripts/rag/sync.py" --fast; then
+if ! "$PY" "$BRAIN_ROOT/scripts/rag/sync_sources.py" --fast; then
   echo "FAIL: first sync"; exit 1
 fi
-out="$("$PY" "$BRAIN_ROOT/scripts/rag/sync.py" --fast --dry-run)"
+out="$("$PY" "$BRAIN_ROOT/scripts/rag/sync_sources.py" --fast --dry-run)"
 if ! echo "$out" | grep -q "0 new, 0 changed, 0 removed, 1 unchanged"; then
   echo "$out"; echo "FAIL: second sync is not a no-op"; exit 1
 fi

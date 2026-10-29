@@ -1,58 +1,74 @@
 # AgentBrain
 
-> The shared **brain** behind every [LiteRealm](https://github.com/KxHartl/LiteRealm) project —
-> LaTeX templates, AI agent definitions, RAG scripts and hard-won gotchas, installed once per machine.
+> The shared **brain** behind every [WorkRealm](https://github.com/KxHartl/WorkRealm) workspace and
+> [LiteRealm](https://github.com/KxHartl/LiteRealm) project: AI agent definitions, skills, LaTeX
+> templates, RAG scripts and hard-won gotchas, installed once per machine.
 
-[![LiteRealm template](https://img.shields.io/badge/works%20with-LiteRealm-6f42c1)](https://github.com/KxHartl/LiteRealm)
-[![RAG · Docling + LanceDB](https://img.shields.io/badge/RAG-Docling%20%2B%20LanceDB-008080)](https://docling-project.github.io/docling/)
+![Version](https://img.shields.io/badge/version-2.6.0-6f42c1)
+[![Works with](https://img.shields.io/badge/works%20with-WorkRealm%20%C2%B7%20LiteRealm-6f42c1)](https://github.com/KxHartl/WorkRealm)
+[![RAG · Docling + Qdrant + LanceDB](https://img.shields.io/badge/RAG-Docling%20%2B%20Qdrant%20%2B%20LanceDB-008080)](https://docling-project.github.io/docling/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB)](https://www.python.org/)
-
-AgentBrain lives at `~/.agentbrain`. You never clone it by hand — the first LiteRealm project
-you bootstrap clones it for you. One brain serves all your projects; each project stays tiny.
-
-```
-   ┌─────────────────────────┐         ┌──────────────────────────────┐
-   │  LiteRealm  (a project)  │         │  AgentBrain  (this — shared)  │
-   │  · your text, data, PDFs │ ◀────▶  │  · templates · agents         │
-   │  · config + state        │  uses   │  · RAG scripts · gotchas      │
-   └─────────────────────────┘         └──────────────────────────────┘
-```
 
 ---
 
-## 📂 Layout
+## The problem
+
+Every project that works with AI agents needs the same things: specialists with clear limits,
+reusable workflows, document templates, a way to search and cite sources, and the lessons learned
+the hard way. Copied into each project, they drift apart, and a fix made in one project never
+reaches the others.
+
+AgentBrain keeps them in **one place per machine**. Projects stay small and sync what they need for
+their size. A gotcha written down once is found by every project after it.
+
+```
+   ┌─────────────────────────┐         ┌──────────────────────────────┐
+   │  WorkRealm / LiteRealm   │         │  AgentBrain  (this — shared)  │
+   │  · one per project       │ ◀────▶  │  · agents · skills            │
+   │  · your text, data, PDFs │  syncs  │  · templates · RAG scripts    │
+   │  · config + state        │         │  · gotchas                    │
+   └─────────────────────────┘         └──────────────────────────────┘
+```
+
+AgentBrain lives at `~/.agentbrain`. You never clone it by hand: the first LiteRealm project you
+bootstrap, or WorkRealm's `wr sync`, sets it up for you.
+
+## Status
+
+| | |
+| --- | --- |
+| Version | **2.6.0** (`manifest.yaml`), requires LiteRealm 2.0.0 and WorkRealm 0.5.0 or newer |
+| Content | 16 agents in three namespaces, 7 skills, 4 gotchas, 5 FSB LaTeX templates |
+| RAG | Shared corpus in Qdrant with a local LanceDB mirror, exposed to agents as MCP tools |
+| Tests | Agent lint, sync tests, RAG MCP tests, RAG round trip and template compile scripts in `tests/` |
+
+---
+
+## Layout
 
 ```
 ~/.agentbrain/
 ├── agents/          ← agent definitions (role · triggers · writes_to · never_touches)
 ├── templates/       ← LaTeX templates, one folder per document type
 ├── scripts/
-│   ├── rag/ingest.py   ← full index of data/sources/*.pdf
-│   ├── rag/sync.py     ← incremental index of data/sources/** (hash per file)
+│   ├── rag/ingest.py   ← index PDFs into LanceDB
 │   ├── rag/query.py    ← search the vector store
-│   ├── rag/classify_source.py ← sort a PDF into standards/regulations/papers/...
-│   ├── rag/store_adapter.py   ← Qdrant (QDRANT_URL) first, LanceDB fallback; Ollama embeddings
-│   ├── data/experiment_manager.py ← traceable raw → processed runs + EXPERIMENTS_LOG
-│   ├── style/          ← check_style (Human Style Score), local_humanizer, learn_style
-│   ├── thesis_dashboard.py ← status / audit of a whole thesis
 │   ├── add_citation.py ← fetch BibTeX from a DOI
-│   ├── sync_agents.py  ← agents/ → project .claude/agents/
 │   └── setup_env.{ps1,sh} ← (re)install the RAG Python env
-├── style/           ← author_profile.yaml + samples/ (your own writing voice)
 ├── skills/          ← reusable AI workflows
 ├── gotchas/         ← documented failure modes for agents
 ├── prompts/         ← reasoning templates (CoT, ReAct, ToT)
 ├── rag/{db,sources} ← global vector store + cross-project reference PDFs
 ├── .venv/           ← the one Python env that powers RAG everywhere
-├── manifest.yaml    ← version contract with LiteRealm
+├── manifest.yaml    ← version contract with LiteRealm and WorkRealm
 └── _TEMPLATE.md     ← format for new skills / gotchas
 ```
 
 ---
 
-## 🤖 Agents
+## Agents
 
-Eight specialists in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
+Eight specialists for academic work in `agents/`. Each declares its **role**, **triggers** (phrases that activate it),
 **writes_to** (allowed directories) and **never_touches** (hard limits).
 
 | Agent | Role | Key restriction |
@@ -63,8 +79,8 @@ Eight specialists in `agents/`. Each declares its **role**, **triggers** (phrase
 | `qa_reviewer` | Review & critique | **Read-only** — only writes `docs/REVIEW.md` |
 | `latex_surgeon` | Fix compile errors | Touches compilation only, never content |
 | `rag_indexer` | Maintain the vector database | `data/sources/` is read-only for it |
-| `data_engineer` | Experiments, processing, figures & tables | `data/raw/` append-only; provenance for every result |
-| `defense_simulator` | Thesis defense drill | Only writes `docs/DEFENSE_PREP.md` |
+| `data_engineer` | Research data, experiment tracking, tables and plots | Never touches the thesis text (`main.tex`, `chapters/`) |
+| `defense_simulator` | Thesis defence drill with committee-style questions | Only writes `docs/DEFENSE_PREP.md` |
 
 **Pipeline:** `latex_architect → data_fetcher → writer → qa_reviewer → latex_surgeon → rag_indexer`
 
@@ -81,9 +97,25 @@ python ~/.agentbrain/scripts/sync_agents.py --project-root . --check   # CI / st
 
 Edit agents **here**, never in `.claude/agents/` (those files are overwritten on sync).
 
+### Namespaces, tiers and skills (WorkRealm)
+
+Agents for other kinds of work live in namespaces: `agents/kev/` (KEV-Ai-Architecture) and
+`agents/work/` (WorkRealm workspaces: `researcher`, `reviewer`, `decision_keeper`, `lab_runner`,
+`releaser`). An agent may declare `tiers: [task, project]`, and its own `tools:` restriction.
+
+```bash
+python ~/.agentbrain/scripts/sync_agents.py --project-root . --namespace work --tier task --prune
+python ~/.agentbrain/scripts/sync_skills.py --project-root . --tier task --prune
+```
+
+`--namespace a,b` reads several namespaces. `--prune` removes generated files whose source is
+gone, but never hand-written ones. A skill in `skills/` is synced into `.claude/skills/<name>/SKILL.md`
+only when it opts in with `tiers:`. WorkRealm's `wr sync` runs both scripts and stamps the brain
+version and commit into `.workrealm.json`.
+
 ---
 
-## 📐 Templates
+## Templates
 
 | Template | Folder | Format |
 |---|---|---|
@@ -98,7 +130,7 @@ and `structure.md` (document skeleton). See `templates/README.md`.
 
 ---
 
-## 📚 RAG — always on
+## RAG — always on
 
 RAG isn't optional and isn't per-project: the scripts and their Python deps live **once** here in
 `~/.agentbrain/.venv`, and every LiteRealm project uses them directly.
@@ -108,9 +140,6 @@ RAG isn't optional and isn't per-project: the scripts and their Python deps live
 python ~/.agentbrain/scripts/rag/ingest.py            # add --ocr for scanned PDFs
 python ~/.agentbrain/scripts/rag/ingest.py --scope global   # index into the global store
 
-# Incremental: only new/changed PDFs anywhere under data/sources/
-python ~/.agentbrain/scripts/rag/sync.py              # --dry-run, --full, --prune (Qdrant)
-
 # Query
 python ~/.agentbrain/scripts/rag/query.py "your question" --scope both
 
@@ -118,14 +147,36 @@ python ~/.agentbrain/scripts/rag/query.py "your question" --scope both
 python ~/.agentbrain/scripts/add_citation.py --doi "10.1109/TRO.2024.1234567"
 ```
 
-**Embeddings**: local Ollama (`OLLAMA_EMBED_MODEL`, e.g. `qwen3-embedding:8b`) when set, then
-Gemini (`GEMINI_API_KEY`), otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`);
-`RAG_STRICT_EMBED=1` refuses to fall back silently. **Store**: Qdrant when `QDRANT_URL` answers
-(the homelab collection is shared — `sync --prune` only deletes points tagged with this project),
-otherwise LanceDB in the project's `.ai/rag/db/`.
+**Embeddings** use Gemini cloud when `GEMINI_API_KEY` is present in the project's `.env`,
+otherwise local `sentence-transformers` (`all-MiniLM-L6-v2`). No configuration switch — it adapts.
 
-In projects, call all of this through the LiteRealm helpers (`rag`, `experiment`, `style`,
-`thesis` in `.ai/scripts/helpers/`), which pick this venv and pass `--project-root`.
+### The shared corpus as MCP tools (2.6.0)
+
+The main corpus lives in Qdrant (`QDRANT_URL`); this machine embeds queries and new
+documents with the model that built it (`OLLAMA_EMBED_MODEL`, default `qwen3-embedding:8b`),
+so the server only stores vectors. `scripts/rag/mcp_server.py` exposes it as three tools:
+
+| Tool | Does |
+|---|---|
+| `rag_search` | top-k excerpts with `source_file`, `page`, score; filters `source`, `domain`, `project` |
+| `rag_status` | server, embedding model and mirror health; flags a model/corpus dimension mismatch |
+| `rag_ingest` | Docling-parses a folder's PDFs, embeds here, upserts into Qdrant (stable ids) |
+
+```bash
+# stdio: what a project's .mcp.json starts; rag_ingest may read only that project folder
+python ~/.agentbrain/scripts/rag/mcp_server.py
+
+# HTTP: one server on this machine for other devices; token required, ingest off by default
+RAG_MCP_TOKEN=... python ~/.agentbrain/scripts/rag/mcp_server.py --http --host 0.0.0.0     --allowed-hosts laptop.lan:8765
+
+# Offline copy: mirror the server corpus (vectors included, nothing re-embedded)
+python ~/.agentbrain/scripts/rag/sync.py          # --check reports the difference only
+```
+
+When Qdrant is unreachable, `rag_search` answers from the mirror (`origin: "mirror"`).
+Settings go in `~/.agentbrain/.env` (ignored by git): `QDRANT_URL`, `QDRANT_COLLECTION`,
+`OLLAMA_EMBED_MODEL`, `RAG_STRICT_EMBED=1`, and for HTTP `RAG_MCP_TOKEN`; `RAG_INGEST_ROOTS`
+widens or (in HTTP mode) enables ingest.
 
 ### Setting up the env
 
@@ -145,15 +196,15 @@ Installs `docling`, `lancedb`, `sentence-transformers`, `google-generativeai`, `
 
 ---
 
-## 🔗 Version contract
+## Version contract
 
-`manifest.yaml` declares the AgentBrain version (currently **2.1.0**, requires LiteRealm ≥ 2.0.0).
+`manifest.yaml` declares the AgentBrain version (currently **2.6.0**; requires LiteRealm ≥ 2.0.0 and WorkRealm ≥ 0.5.0).
 Bootstrap stamps that version + commit into each project's `project.yaml`
 (`agentbrain_version`), so every project records exactly which brain built it.
 
 ---
 
-## ➕ Adding knowledge
+## Adding knowledge
 
 New `skills/`, `gotchas/` and `prompts/` follow `_TEMPLATE.md`:
 
@@ -170,3 +221,7 @@ author: [your-id or AI]
 ```
 
 Agents are encouraged to update this brain themselves when they discover a new gotcha or workflow.
+
+## License
+
+[Apache-2.0](LICENSE). It covers the author's own work in this repository. Third-party parts keep their own licences.

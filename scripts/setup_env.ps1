@@ -18,6 +18,7 @@ if ($uvAvailable) {
     uv pip install --python $pythonPath --upgrade pip
     uv pip install --python $pythonPath -q `
         python-dotenv `
+        mcp `
         docling `
         lancedb `
         pypdf `
@@ -32,6 +33,7 @@ if ($uvAvailable) {
     & $pipCmd install --upgrade pip
     & $pipCmd install -q `
         python-dotenv `
+        mcp `
         docling `
         lancedb `
         pypdf `
